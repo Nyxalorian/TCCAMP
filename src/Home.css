@@ -1873,3 +1873,364 @@
     content: '';
   }
 }
+
+/* Modo escuro completo */
+.home-container.dark-mode {
+  background: #0f172a;
+  color: #e5e7eb;
+}
+
+.dark-mode .main-content {
+  background: linear-gradient(135deg, #0f172a 0%, #111827 100%);
+  color: #e5e7eb;
+}
+
+.dark-mode .sidebar {
+  background: linear-gradient(180deg, #020617 0%, #0f172a 100%);
+  border-right-color: #1e293b;
+  box-shadow: 0 4px 22px rgba(0, 0, 0, 0.35);
+}
+
+.dark-mode .sidebar-header {
+  background: #020617;
+  border-bottom-color: #1e293b;
+}
+
+.dark-mode .logo-icon {
+  background: #f8fafc;
+}
+
+.dark-mode .accessibility-toggle,
+.dark-mode .sidebar-header button {
+  background: rgba(37, 99, 235, 0.22) !important;
+  color: #e0f2fe !important;
+  border-color: rgba(96, 165, 250, 0.35) !important;
+}
+
+.dark-mode .accessibility-toggle:hover,
+.dark-mode .sidebar-header button:hover {
+  background: rgba(37, 99, 235, 0.35) !important;
+  border-color: rgba(147, 197, 253, 0.65) !important;
+}
+
+.dark-mode .nav-buttons button {
+  color: #cbd5e1;
+}
+
+.dark-mode .nav-buttons button:hover {
+  background: rgba(59, 130, 246, 0.16);
+  color: #bfdbfe;
+}
+
+.dark-mode .nav-buttons button.active {
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  color: #ffffff;
+  box-shadow: 0 4px 18px rgba(37, 99, 235, 0.35);
+}
+
+.dark-mode .dashboard-header,
+.dark-mode .adicionar-header,
+.dark-mode .user-greeting,
+.dark-mode .help-intro {
+  background: linear-gradient(135deg, #1d4ed8 0%, #172554 100%);
+  color: #ffffff;
+}
+
+.dark-mode .welcome-title,
+.dark-mode .welcome-subtitle,
+.dark-mode .page-title,
+.dark-mode .page-subtitle {
+  color: #f8fafc;
+}
+
+.dark-mode .stat-card,
+.dark-mode .stat-mini {
+  background: rgba(15, 23, 42, 0.35);
+  border-color: rgba(147, 197, 253, 0.18);
+}
+
+.dark-mode .stat-number {
+  color: #93c5fd;
+}
+
+.dark-mode .stat-label {
+  color: #dbeafe;
+}
+
+.dark-mode .dashboard-card,
+.dark-mode .card,
+.dark-mode .add-card,
+.dark-mode .tips-section,
+.dark-mode .tip-card,
+.dark-mode .historico-item,
+.dark-mode .sobre-content {
+  background: #111827 !important;
+  color: #e5e7eb !important;
+  border-color: #253244 !important;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28) !important;
+}
+
+.dark-mode .priority-card {
+  background: linear-gradient(135deg, rgba(127, 29, 29, 0.28) 0%, #111827 70%) !important;
+  border-left-color: #f87171;
+}
+
+.dark-mode .urgent-card {
+  background: #111827;
+  border-color: #253244;
+}
+
+.dark-mode .help-tips {
+  background: linear-gradient(135deg, #065f46 0%, #064e3b 100%) !important;
+  color: #ecfdf5;
+}
+
+.dark-mode .help-emergency {
+  background: linear-gradient(135deg, #991b1b 0%, #7f1d1d 100%) !important;
+  color: #fef2f2;
+}
+
+.dark-mode .help-seniors {
+  background: linear-gradient(135deg, #0f766e 0%, #115e59 100%);
+  color: #f0fdfa;
+}
+
+.dark-mode .card-header-modern,
+.dark-mode .card-header,
+.dark-mode .pharmacy-header,
+.dark-mode .progress-container,
+.dark-mode .historico-detalhes {
+  border-color: #253244;
+}
+
+.dark-mode h1,
+.dark-mode h2,
+.dark-mode h3,
+.dark-mode h4,
+.dark-mode .section-title,
+.dark-mode .card-header-modern h3,
+.dark-mode .card h3,
+.dark-mode .card h4,
+.dark-mode .card-title-section h3,
+.dark-mode .projeto-info h2,
+.dark-mode .equipe-info h2,
+.dark-mode .tecnologias h2 {
+  color: #f8fafc !important;
+  -webkit-text-fill-color: currentColor;
+}
+
+.dark-mode .section-title {
+  background: none;
+}
+
+.dark-mode p,
+.dark-mode label,
+.dark-mode .welcome-subtitle,
+.dark-mode .card-title-section p,
+.dark-mode .help-text,
+.dark-mode .help-step p,
+.dark-mode .tip-card p,
+.dark-mode .tip-item p,
+.dark-mode .senior-tip p,
+.dark-mode .historico-detalhes p,
+.dark-mode .projeto-info p,
+.dark-mode .integrante-card p,
+.dark-mode .pharmacy-address,
+.dark-mode .history-time,
+.dark-mode .reminder-time,
+.dark-mode .med-dosage,
+.dark-mode .med-row__meta,
+.dark-mode .item-date,
+.dark-mode .pharmacy-distance,
+.dark-mode .historico-acao,
+.dark-mode .historico-time {
+  color: #cbd5e1 !important;
+}
+
+.dark-mode .timeline-item,
+.dark-mode .history-item,
+.dark-mode .reminder-item,
+.dark-mode .med-row,
+.dark-mode .item,
+.dark-mode .pharmacy-item,
+.dark-mode .integrante-card,
+.dark-mode .emergency-item,
+.dark-mode .usuario-item:not(.header) {
+  background: #1f2937 !important;
+  color: #e5e7eb !important;
+  border-color: #334155 !important;
+}
+
+.dark-mode .reminder-item.priority {
+  background: rgba(127, 29, 29, 0.38) !important;
+  border-left-color: #f87171;
+}
+
+.dark-mode .timeline-item:hover,
+.dark-mode .history-item:hover,
+.dark-mode .reminder-item:hover,
+.dark-mode .med-row:hover,
+.dark-mode .item:hover,
+.dark-mode .pharmacy-item:hover,
+.dark-mode .usuario-item:not(.header):hover {
+  background: #263244 !important;
+}
+
+.dark-mode .timeline-time,
+.dark-mode .btn-link,
+.dark-mode .projeto-info h2,
+.dark-mode .equipe-info h2,
+.dark-mode .tecnologias h2 {
+  color: #93c5fd !important;
+}
+
+.dark-mode .med-info h4,
+.dark-mode .history-med,
+.dark-mode .reminder-title,
+.dark-mode .med-row__name,
+.dark-mode .pharmacy-name,
+.dark-mode .historico-info h4,
+.dark-mode .integrante-card h3,
+.dark-mode .help-step h4,
+.dark-mode .tip-item h4,
+.dark-mode .senior-tip h4 {
+  color: #f8fafc !important;
+}
+
+.dark-mode .card-image,
+.dark-mode .card-icon-large,
+.dark-mode .integrante-avatar {
+  background: #1f2937 !important;
+  color: #bfdbfe !important;
+}
+
+.dark-mode .btn-check {
+  background: #111827;
+  color: #34d399;
+  border-color: #34d399;
+}
+
+.dark-mode .btn-check:hover {
+  background: #059669;
+  color: #ffffff;
+}
+
+.dark-mode input,
+.dark-mode select,
+.dark-mode textarea,
+.dark-mode .search-input,
+.dark-mode .med-form input,
+.dark-mode .med-form select,
+.dark-mode .profile-form input,
+.dark-mode .input-modern,
+.dark-mode .select-modern,
+.dark-mode .textarea-modern,
+.dark-mode .language-selector select {
+  background: #0f172a !important;
+  color: #f8fafc !important;
+  border-color: #334155 !important;
+}
+
+.dark-mode input::placeholder,
+.dark-mode textarea::placeholder,
+.dark-mode .search-input::placeholder,
+.dark-mode .input-modern::placeholder,
+.dark-mode .textarea-modern::placeholder {
+  color: #94a3b8 !important;
+}
+
+.dark-mode input:focus,
+.dark-mode select:focus,
+.dark-mode textarea:focus,
+.dark-mode .search-input:focus,
+.dark-mode .input-modern:focus,
+.dark-mode .select-modern:focus,
+.dark-mode .textarea-modern:focus,
+.dark-mode .language-selector select:focus {
+  border-color: #60a5fa !important;
+  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.2) !important;
+}
+
+.dark-mode .modal-overlay {
+  background: rgba(2, 6, 23, 0.76);
+}
+
+.dark-mode .modal {
+  background: #111827;
+  color: #e5e7eb;
+  border: 1px solid #334155;
+}
+
+.dark-mode .modal h3 {
+  color: #f8fafc;
+}
+
+.dark-mode .modal h3[style*="color"] {
+  color: #fca5a5 !important;
+}
+
+.dark-mode .modal > div[style*="background-color"] {
+  background: rgba(127, 29, 29, 0.34) !important;
+  border-color: #7f1d1d !important;
+}
+
+.dark-mode .modal > div[style*="background-color"] p {
+  color: #fecaca !important;
+}
+
+.dark-mode .btn-cancel {
+  background: #334155;
+  color: #e5e7eb;
+}
+
+.dark-mode .btn-cancel:hover {
+  background: #475569;
+}
+
+.dark-mode .progress-bar,
+.dark-mode .circle-bg {
+  background: #334155;
+  stroke: #334155;
+}
+
+.dark-mode .percentage {
+  fill: #f8fafc;
+}
+
+.dark-mode .emergency-number {
+  background: #f8fafc;
+  color: #991b1b;
+}
+
+.dark-mode .sobre-container {
+  background: linear-gradient(135deg, #0f172a 0%, #111827 100%);
+}
+
+.dark-mode .tech-item {
+  background: #2563eb;
+  color: #ffffff;
+}
+
+.dark-mode .usuario-item.header {
+  background: rgba(37, 99, 235, 0.18);
+  color: #bfdbfe;
+  border-bottom-color: #60a5fa;
+}
+
+.dark-mode .usuario-item span,
+.dark-mode .usuario-item.header span {
+  color: #e5e7eb;
+}
+
+.dark-mode [style*="color: #666"],
+.dark-mode [style*="color:'#666'"],
+.dark-mode [style*="color: '#666'"] {
+  color: #cbd5e1 !important;
+}
+
+.dark-mode [style*="backgroundColor: '#fef2f2'"],
+.dark-mode [style*="background-color: #fef2f2"],
+.dark-mode [style*="backgroundColor:#fef2f2"] {
+  background: rgba(127, 29, 29, 0.35) !important;
+  border-color: #7f1d1d !important;
+}
