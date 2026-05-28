@@ -67,11 +67,20 @@
 }
 
 .user-icon::before {
-  content: '💊';
+  content: 'MED';
   position: absolute;
   top: -10px;
   right: -10px;
-  font-size: 1.5rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 8px;
+  background: #dbeafe;
+  color: #1d4ed8;
+  font-size: 0.7rem;
+  font-weight: 800;
   z-index: 2;
 }
 

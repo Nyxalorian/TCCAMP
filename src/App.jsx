@@ -5,6 +5,17 @@ import Home from './Home'
 import './App.css'
 import './Accessibility.css'
 
+function Widget({ className = '' }) {
+  return (
+    <span className={`ui-widget ${className}`.trim()} aria-hidden="true">
+      <svg viewBox="0 0 24 24" focusable="false">
+        <path d="M11 19a8 8 0 1 1 0-16 8 8 0 0 1 0 16Z" />
+        <path d="m21 21-4.35-4.35" />
+      </svg>
+    </span>
+  )
+}
+
 function App() {
   const [currentPage, setCurrentPage] = useState('cadastro')
   const [isLoggedIn, setIsLoggedIn] = useState(() => {
@@ -46,7 +57,8 @@ function App() {
             onClick={toggleAccessibilityMode}
             title={accessibilityMode ? 'Desativar modo de acessibilidade' : 'Ativar modo de acessibilidade - Letras maiores'}
           >
-            {accessibilityMode ? '🔍 Modo Normal' : '🔍 Letras Grandes'}
+            <Widget className="btn-icon" />
+            {accessibilityMode ? 'Modo Normal' : 'Letras Grandes'}
           </button>
         </div>
         <Login onGoToCadastro={() => setCurrentPage('cadastro')} onLogin={handleLogin} />
@@ -62,7 +74,8 @@ function App() {
           onClick={toggleAccessibilityMode}
           title={accessibilityMode ? 'Desativar modo de acessibilidade' : 'Ativar modo de acessibilidade - Letras maiores'}
         >
-          {accessibilityMode ? '🔍 Modo Normal' : '🔍 Letras Grandes'}
+          <Widget className="btn-icon" />
+          {accessibilityMode ? 'Modo Normal' : 'Letras Grandes'}
         </button>
       </div>
       <Cadastro onGoToLogin={() => setCurrentPage('login')} />

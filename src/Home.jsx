@@ -8,6 +8,197 @@ import API_CONFIG from './config'
 
 const API_BASE_URL = API_CONFIG.BASE_URL
 
+const widgetLabels = {
+  add: '+',
+  bell: 'NL',
+  chart: '%',
+  checklist: 'OK',
+  delete: 'EXC',
+  doctor: 'DR',
+  edit: 'ED',
+  list: 'HR',
+  logout: 'SAIR',
+  search: 'BUS',
+  sparkle: 'AN',
+  target: 'PM',
+  time: 'PD',
+  trend: 'AD',
+  users: 'USU',
+  warning: '!'
+}
+
+const widgetIcons = {
+  add: (
+    <svg viewBox="0 0 24 24" focusable="false">
+      <path d="M12 5v14" />
+      <path d="M5 12h14" />
+    </svg>
+  ),
+  bell: (
+    <svg viewBox="0 0 24 24" focusable="false">
+      <path d="M10 5a2 2 0 0 1 4 0 7 7 0 0 1 4 6v3l2 3H4l2-3v-3a7 7 0 0 1 4-6Z" />
+      <path d="M10 19a2 2 0 0 0 4 0" />
+    </svg>
+  ),
+  chart: (
+    <svg viewBox="0 0 24 24" focusable="false">
+      <path d="M12 3v9h9" />
+      <path d="M21 12a9 9 0 1 1-9-9" />
+    </svg>
+  ),
+  pill: (
+    <svg viewBox="0 0 24 24" focusable="false">
+      <path d="M10 21 3 14a5 5 0 0 1 7-7l7 7a5 5 0 0 1-7 7Z" />
+      <path d="m8.5 8.5 7 7" />
+    </svg>
+  ),
+  target: (
+    <svg viewBox="0 0 24 24" focusable="false">
+      <circle cx="12" cy="12" r="8" />
+      <circle cx="12" cy="12" r="3" />
+      <path d="M12 2v2" />
+      <path d="M12 20v2" />
+      <path d="M2 12h2" />
+      <path d="M20 12h2" />
+    </svg>
+  ),
+  time: (
+    <svg viewBox="0 0 24 24" focusable="false">
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7v5" />
+      <path d="M15 15h4" />
+    </svg>
+  ),
+  trend: (
+    <svg viewBox="0 0 24 24" focusable="false">
+      <path d="M4 19V5" />
+      <path d="M4 19h16" />
+      <path d="m7 14 4-4 3 3 5-6" />
+    </svg>
+  ),
+  list: (
+    <svg viewBox="0 0 24 24" focusable="false">
+      <path d="M9 6h11" />
+      <path d="M9 12h11" />
+      <path d="M9 18h11" />
+      <path d="M4 6h.01" />
+      <path d="M4 12h.01" />
+      <path d="M4 18h.01" />
+    </svg>
+  ),
+  settings: (
+    <svg viewBox="0 0 24 24" focusable="false">
+      <path d="M10.3 4.3 11 2h2l.7 2.3 1.7.7 2.1-1.1 1.4 1.4-1.1 2.1.7 1.7L21 10v2l-2.3.7-.7 1.7 1.1 2.1-1.4 1.4-2.1-1.1-1.7.7L13 22h-2l-.7-2.3-1.7-.7-2.1 1.1-1.4-1.4 1.1-2.1-.7-1.7L3 12v-2l2.3-.7.7-1.7-1.1-2.1 1.4-1.4L8.6 5l1.7-.7Z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  ),
+  sparkle: (
+    <svg viewBox="0 0 24 24" focusable="false">
+      <path d="M12 3 14 9l6 3-6 3-2 6-2-6-6-3 6-3 2-6Z" />
+      <path d="M19 3v4" />
+      <path d="M21 5h-4" />
+    </svg>
+  ),
+  users: (
+    <svg viewBox="0 0 24 24" focusable="false">
+      <path d="M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z" />
+      <path d="M3 21v-2a6 6 0 0 1 12 0v2" />
+      <path d="M16 3.2a4 4 0 0 1 0 7.6" />
+      <path d="M21 21v-2a6 6 0 0 0-4-5.65" />
+    </svg>
+  ),
+  warning: (
+    <svg viewBox="0 0 24 24" focusable="false">
+      <path d="M12 9v4" />
+      <path d="M12 17h.01" />
+      <path d="M10.3 3.9 2.4 18a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" />
+    </svg>
+  ),
+  checklist: (
+    <svg viewBox="0 0 24 24" focusable="false">
+      <path d="M20 6 9 17l-5-5" />
+    </svg>
+  ),
+  delete: (
+    <svg viewBox="0 0 24 24" focusable="false">
+      <path d="M3 6h18" />
+      <path d="M8 6V4h8v2" />
+      <path d="M6 6l1 14h10l1-14" />
+      <path d="M10 11v5" />
+      <path d="M14 11v5" />
+    </svg>
+  ),
+  edit: (
+    <svg viewBox="0 0 24 24" focusable="false">
+      <path d="M4 20h4l11-11-4-4L4 16v4Z" />
+      <path d="m13 7 4 4" />
+    </svg>
+  ),
+  logout: (
+    <svg viewBox="0 0 24 24" focusable="false">
+      <path d="M10 17 15 12l-5-5" />
+      <path d="M15 12H3" />
+      <path d="M14 4h5v16h-5" />
+    </svg>
+  ),
+  search: (
+    <svg viewBox="0 0 24 24" focusable="false">
+      <path d="M11 19a8 8 0 1 1 0-16 8 8 0 0 1 0 16Z" />
+      <path d="m21 21-4.35-4.35" />
+    </svg>
+  )
+}
+
+function Widget({ type, className = '' }) {
+  return (
+    <span className={`ui-widget ui-widget--${type} ${className}`.trim()} aria-hidden="true">
+      {widgetIcons[type] || widgetLabels[type] || type.toUpperCase()}
+    </span>
+  )
+}
+
+function TablerIcon({ name }) {
+  const paths = {
+    compass: (
+      <>
+        <circle cx="12" cy="12" r="9" />
+        <path d="m10 14 2-6 2 2-2 6-2-2Z" />
+      </>
+    ),
+    pill: (
+      <>
+        <path d="M10 21 3 14a5 5 0 0 1 7-7l7 7a5 5 0 0 1-7 7Z" />
+        <path d="m8.5 8.5 7 7" />
+      </>
+    ),
+    history: (
+      <>
+        <path d="M12 8v4l2 2" />
+        <path d="M3.05 11a9 9 0 1 1 .5 4" />
+        <path d="M3 4v7h7" />
+      </>
+    ),
+    shield: (
+      <>
+        <path d="M12 3 20 7v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7l8-4Z" />
+        <path d="m9 12 2 2 4-4" />
+      </>
+    ),
+    settings: (
+      <>
+        <path d="M10.3 4.3 11 2h2l.7 2.3 1.7.7 2.1-1.1 1.4 1.4-1.1 2.1.7 1.7L21 10v2l-2.3.7-.7 1.7 1.1 2.1-1.4 1.4-2.1-1.1-1.7.7L13 22h-2l-.7-2.3-1.7-.7-2.1 1.1-1.4-1.4 1.1-2.1-.7-1.7L3 12v-2l2.3-.7.7-1.7-1.1-2.1 1.4-1.4L8.6 5l1.7-.7Z" />
+        <circle cx="12" cy="12" r="3" />
+      </>
+    )
+  }
+
+  return (
+    <svg className="tabler-icon" viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+      {paths[name]}
+    </svg>
+  )
+}
+
 function Home({ onLogout }) {
   const [activeSection, setActiveSection] = useState('dashboard')
   const [isAdmin] = useState(() => sessionStorage.getItem('isAdmin') === 'true')
@@ -15,14 +206,15 @@ function Home({ onLogout }) {
     nome: '',
     dosagem: '',
     horario: '',
-    frequencia: 'Diário',
-    duracao: '1 semana'
+    frequencia: 'diario',
+    duracao: '1-semana'
   })
   const [medicamentosTomados, setMedicamentosTomados] = useState([])
   const [showToast, setShowToast] = useState(false)
   const [toastMessage, setToastMessage] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
   const [helpSearchTerm, setHelpSearchTerm] = useState('')
+  const [historyFilter, setHistoryFilter] = useState('week')
   const [medicamentos, setMedicamentos] = useState([])
   const [loading, setLoading] = useState(false)
   const [estatisticas, setEstatisticas] = useState({ adesao: 0, tomados: 0, total: 0 })
@@ -94,7 +286,7 @@ function Home({ onLogout }) {
     setAccessibilityMode(newMode)
     localStorage.setItem('accessibilityMode', newMode.toString())
     if (newMode) {
-      showToastMessage('🔍 Modo de Acessibilidade ATIVADO - Letras maiores e interface simplificada')
+      showToastMessage('Modo de Acessibilidade ATIVADO - Letras maiores e interface simplificada')
     } else {
       showToastMessage('Modo de Acessibilidade desativado')
     }
@@ -122,7 +314,7 @@ function Home({ onLogout }) {
           await fetch(`${API_BASE_URL}/api/historico/${historicoCriado.id}/confirmar`, { method: 'PATCH' })
         }
         setMedicamentosTomados([...medicamentosTomados, medicamentoId])
-        showToastMessage('✅ Medicamento marcado como tomado!')
+        showToastMessage('Medicamento marcado como tomado!')
         await carregarHistoricoCompleto()
         carregarEstatisticas()
         carregarHistoricoRecente()
@@ -134,7 +326,7 @@ function Home({ onLogout }) {
       medicamentosTomadosLocal.push({ medicamentoId, dataHora: new Date().toISOString(), usuario: sessionStorage.getItem('userName') })
       localStorage.setItem('medicamentosTomados', JSON.stringify(medicamentosTomadosLocal))
       setMedicamentosTomados([...medicamentosTomados, medicamentoId])
-      showToastMessage('✅ Medicamento marcado como tomado!')
+      showToastMessage('Medicamento marcado como tomado!')
       carregarEstatisticas()
       carregarHistoricoRecente()
     }
@@ -182,11 +374,11 @@ function Home({ onLogout }) {
   
   const renderAjuda = () => {
     const helpTopics = [
-      { icon: '01', title: 'Primeiros passos', text: 'Entrar, entender o painel e localizar as áreas principais.' },
-      { icon: 'RX', title: 'Gerenciar medicamentos', text: 'Cadastrar, revisar horários e confirmar tomadas.' },
-      { icon: 'H', title: 'Histórico e notificações', text: 'Acompanhar registros e manter lembretes ativos.' },
-      { icon: 'S', title: 'Segurança da conta', text: 'Editar dados, trocar senha e sair com segurança.' },
-      { icon: 'A', title: 'Configurações', text: 'Ativar modo escuro, letras grandes e preferências.' }
+      { icon: 'compass', title: 'Primeiros passos', text: 'Entrar, entender o painel e localizar as áreas principais.' },
+      { icon: 'pill', title: 'Gerenciar medicamentos', text: 'Cadastrar, revisar horários e confirmar tomadas.' },
+      { icon: 'history', title: 'Histórico', text: 'Acompanhar registros e manter lembretes ativos.' },
+      { icon: 'shield', title: 'Segurança', text: 'Editar dados, trocar senha e sair com segurança.' },
+      { icon: 'settings', title: 'Configurações', text: 'Ativar modo escuro, letras grandes e preferências.' }
     ]
 
     const faqs = [
@@ -300,7 +492,7 @@ function Home({ onLogout }) {
           <ul className="help-progress__steps" aria-label="Checklist de progresso">
             {onboardingSteps.map((step) => (
               <li key={step.title} className={step.done ? 'is-done' : ''}>
-                <span aria-hidden="true">{step.done ? '✓' : ''}</span>
+                <span aria-hidden="true">{step.done ? <Widget type="checklist" /> : ''}</span>
                 {step.title}
               </li>
             ))}
@@ -312,7 +504,7 @@ function Home({ onLogout }) {
             <div className="help-topic-grid" aria-label="Tópicos de ajuda">
               {filteredTopics.length > 0 ? filteredTopics.map((topic) => (
                 <article className="help-topic-card" key={topic.title} tabIndex="0">
-                  <span className="help-topic-icon" aria-hidden="true">{topic.icon}</span>
+                  <span className="help-topic-icon" aria-hidden="true"><TablerIcon name={topic.icon} /></span>
                   <h3>{topic.title}</h3>
                   <p>{topic.text}</p>
                 </article>
@@ -538,22 +730,22 @@ function Home({ onLogout }) {
             <p className="welcome-subtitle">Gerencie seus medicamentos de forma inteligente</p>
           </div>
           <div className="quick-stats">
-            <div className="stat-card">
-              <div className="stat-icon">💊</div>
+            <div className="stat-card stat-card--taken">
+              <div className="stat-icon"><Widget type="pill" /></div>
               <div className="stat-info">
                 <span className="stat-number">{estatisticas.tomados}</span>
                 <span className="stat-label">Tomados hoje</span>
               </div>
             </div>
-            <div className="stat-card">
-              <div className="stat-icon">⏰</div>
+            <div className="stat-card stat-card--pending">
+              <div className="stat-icon"><Widget type="time" /></div>
               <div className="stat-info">
                 <span className="stat-number">{totalPendentes}</span>
                 <span className="stat-label">Pendentes</span>
               </div>
             </div>
-            <div className="stat-card">
-              <div className="stat-icon">📈</div>
+            <div className="stat-card stat-card--adherence">
+              <div className="stat-icon"><Widget type="trend" /></div>
               <div className="stat-info">
                 <span className="stat-number">{adesao}%</span>
                 <span className="stat-label">Adesão</span>
@@ -567,7 +759,7 @@ function Home({ onLogout }) {
           {/* Próximos medicamentos */}
           <div className="dashboard-card priority-card">
             <div className="card-header-modern">
-              <h3><span className="card-icon">🎯</span>Próximos Medicamentos</h3>
+              <h3><Widget type="target" className="card-icon" />Próximos Medicamentos</h3>
               <span className="card-badge urgent">Urgente</span>
             </div>
             <div className="medication-timeline">
@@ -594,14 +786,13 @@ function Home({ onLogout }) {
                         <h4>{med.nome}</h4>
                         <span className="med-dosage">{med.dosagem}</span>
                       </div>
-                      {!jaTomado && (
-                        <button 
-                          className="btn-check" 
-                          onClick={() => marcarComoTomado(med)}
-                        >
-                          ✓
-                        </button>
-                      )}
+                      <button 
+                        className={`btn-check ${jaTomado ? 'is-taken' : ''}`}
+                        onClick={() => !jaTomado && marcarComoTomado(med)}
+                        aria-label={jaTomado ? `${med.nome} tomado` : `Marcar ${med.nome} como tomado`}
+                      >
+                        <Widget type="checklist" />
+                      </button>
                     </div>
                   </div>
                 )
@@ -612,7 +803,7 @@ function Home({ onLogout }) {
           {/* Resumo de adesão */}
           <div className="dashboard-card">
             <div className="card-header-modern">
-              <h3><span className="card-icon">📊</span>Adesão ao Tratamento</h3>
+              <h3><Widget type="chart" className="card-icon" />Adesão ao Tratamento</h3>
             </div>
             <div className="adherence-chart">
               <div className="chart-circle">
@@ -645,7 +836,7 @@ function Home({ onLogout }) {
           {/* Histórico recente */}
           <div className="dashboard-card">
             <div className="card-header-modern">
-              <h3><span className="card-icon">📋</span>Histórico Recente</h3>
+              <h3><Widget type="list" className="card-icon" />Histórico Recente</h3>
               <button className="btn-link" onClick={() => setActiveSection('historico')}>Ver tudo</button>
             </div>
             <div className="recent-history">
@@ -658,7 +849,7 @@ function Home({ onLogout }) {
               ) : (
                 ultimosRemedios.map((remedio, index) => (
                   <div key={index} className="history-item">
-                    <div className="history-icon">✅</div>
+                    <div className="history-icon"><Widget type="checklist" /></div>
                     <div className="history-info">
                       <span className="history-med">{remedio.nome}</span>
                       <span className="history-time">{remedio.data} às {remedio.horario}</span>
@@ -672,7 +863,7 @@ function Home({ onLogout }) {
           {/* Lembretes importantes */}
           <div className="dashboard-card">
             <div className="card-header-modern">
-              <h3><span className="card-icon">🔔</span>Lembretes</h3>
+              <h3><Widget type="bell" className="card-icon" />Lembretes</h3>
               <button className="btn-link" onClick={() => setActiveSection('adicionar')}>Adicionar</button>
             </div>
             <div className="reminders-list">
@@ -705,7 +896,7 @@ function Home({ onLogout }) {
                   
                   return (
                     <div key={index} className={`reminder-item ${isPriority ? 'priority' : ''}`}>
-                      <div className="reminder-icon">🔔</div>
+                      <div className="reminder-icon"><Widget type="bell" /></div>
                       <div className="reminder-content">
                         <span className="reminder-title">{lembrete.titulo}</span>
                         <span className="reminder-time">{dataTexto} às {lembrete.horario}</span>
@@ -773,21 +964,21 @@ function Home({ onLogout }) {
           })
         })
         if (response.ok) {
-          showToastMessage('✨ Medicamento adicionado com sucesso!')
-          setNovoMedicamento({ nome: '', dosagem: '', horario: '', frequencia: 'Diário', duracao: '1 semana' })
+          showToastMessage('Medicamento adicionado com sucesso!')
+          setNovoMedicamento({ nome: '', dosagem: '', horario: '', frequencia: 'diario', duracao: '1-semana' })
           await carregarMedicamentos()
           carregarHistoricoCompleto()
         } else {
           const errText = await response.text()
           console.error('Erro ao salvar medicamento:', errText)
-          showToastMessage(`⚠️ Erro ao salvar: ${errText}`)
+          showToastMessage(`Erro ao salvar: ${errText}`)
         }
       } catch (error) {
         console.error('Erro de conexão ao salvar medicamento:', error)
-        showToastMessage(`⚠️ Erro de conexão: ${error.message}`)
+        showToastMessage(`Erro de conexão: ${error.message}`)
       }
     } else {
-      showToastMessage('⚠️ Preencha todos os campos obrigatórios!')
+      showToastMessage('Preencha todos os campos obrigatórios!')
     }
   }
 
@@ -1073,14 +1264,13 @@ function Home({ onLogout }) {
     const medicamentosFiltrados = agendaMedicamentos.filter(med => 
       med.nome.toLowerCase().includes(searchTerm.toLowerCase())
     )
-    
     return (
       <>
-        <h2 className="section-title">Agenda de Medicamentos</h2>
+        <h2 className="section-title">Agenda de medicamentos</h2>
         <div className="search-container">
           <input
             type="text"
-            placeholder="🔍 Buscar medicamento..."
+            placeholder="Buscar medicamento..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="search-input"
@@ -1089,7 +1279,8 @@ function Home({ onLogout }) {
             className="btn-add-med"
             onClick={() => setActiveSection('adicionar')}
           >
-            ➕ Adicionar Medicamento
+            <Widget type="add" className="btn-icon" />
+            Adicionar Medicamento
           </button>
         </div>
         <div className="agenda">
@@ -1111,7 +1302,6 @@ function Home({ onLogout }) {
             const jaTomado = medicamentosTomados.includes(med.id)
             return (
               <div key={index} className={`med-row ${jaTomado ? 'med-row--taken' : ''}`}>
-                <div className="med-row__icon">💊</div>
                 <div className="med-row__info">
                   <span className="med-row__name">{med.nome}</span>
                   <span className="med-row__meta">{med.dosagem} · {med.horario} · {med.frequencia}</span>
@@ -1119,10 +1309,10 @@ function Home({ onLogout }) {
                 <span className="badge" style={{backgroundColor: badge.color, flexShrink: 0}}>{badge.text}</span>
                 <div className="med-row__actions">
                   {!jaTomado && med.status !== 'tomado' && (
-                    <button className="btn-take" onClick={() => marcarComoTomado(med)}>✓ Tomado</button>
+                    <button className="btn-take" onClick={() => marcarComoTomado(med)} title="Marcar como tomado"><Widget type="checklist" /> Tomado</button>
                   )}
-                  <button className="btn-edit" onClick={() => handleEditMedicamento(med)} title="Editar">✏️</button>
-                  <button className="btn-delete-small" onClick={() => handleDeleteMedicamento(med.id)} title="Excluir">🗑️</button>
+                  <button className="btn-edit" onClick={() => handleEditMedicamento(med)} title="Editar"><Widget type="edit" /></button>
+                  <button className="btn-delete-small" onClick={() => handleDeleteMedicamento(med.id)} title="Excluir"><Widget type="delete" /></button>
                 </div>
               </div>
             )
@@ -1136,25 +1326,15 @@ function Home({ onLogout }) {
     <div className="adicionar-container">
       <div className="adicionar-header">
         <div className="header-content">
-          <h1 className="page-title">✨ Adicionar Novo</h1>
+          <h1 className="page-title">Adicionar novo</h1>
           <p className="page-subtitle">Cadastre medicamentos e lembretes para manter sua saúde em dia</p>
-        </div>
-        <div className="header-stats">
-          <div className="stat-mini">
-            <span className="stat-number">{medicamentos.length}</span>
-            <span className="stat-label">Medicamentos</span>
-          </div>
-          <div className="stat-mini">
-            <span className="stat-number">{lembretes.length}</span>
-            <span className="stat-label">Lembretes</span>
-          </div>
         </div>
       </div>
 
       <div className="adicionar-grid">
         <div className="add-card medicamento-card">
           <div className="card-header-modern">
-            <div className="card-icon-large">💊</div>
+            <div className="card-icon-large"><Widget type="pill" /></div>
             <div className="card-title-section">
               <h3>Novo Medicamento</h3>
               <p>Adicione um medicamento à sua agenda</p>
@@ -1163,7 +1343,7 @@ function Home({ onLogout }) {
           
           <div className="form-modern">
             <div className="input-group">
-              <label>Nome do Medicamento</label>
+              <label>Nome do medicamento</label>
               <input
                 type="text"
                 placeholder="Ex: Paracetamol, Dipirona..."
@@ -1207,24 +1387,24 @@ function Home({ onLogout }) {
                   onChange={(e) => setNovoMedicamento({...novoMedicamento, frequencia: e.target.value})}
                   className="select-modern"
                 >
-                  <option value="Diário">📅 Diário</option>
-                  <option value="12h">🕐 A cada 12h</option>
-                  <option value="8h">⏰ A cada 8h</option>
-                  <option value="Semanal">📆 Semanal</option>
+                  <option value="diario">Diário</option>
+                  <option value="12h">A cada 12h</option>
+                  <option value="8h">A cada 8h</option>
+                  <option value="Semanal">Semanal</option>
                 </select>
               </div>
               
               <div className="input-group">
-                <label>Duração do Tratamento</label>
+                <label>Duração do tratamento</label>
                 <select
                   value={novoMedicamento.duracao}
                   onChange={(e) => setNovoMedicamento({...novoMedicamento, duracao: e.target.value})}
                   className="select-modern"
                 >
+                  <option value="1-semana">1 semana</option>
                   <option value="1 dia">1 dia</option>
                   <option value="3 dias">3 dias</option>
                   <option value="5 dias">5 dias</option>
-                  <option value="1 semana">1 semana</option>
                   <option value="2 semanas">2 semanas</option>
                   <option value="1 mês">1 mês</option>
                   <option value="3 meses">3 meses</option>
@@ -1239,7 +1419,7 @@ function Home({ onLogout }) {
               className="btn-add-modern medicamento"
               type="button"
             >
-              <span className="btn-icon">💊</span>
+              <Widget type="pill" className="btn-icon" />
               Adicionar Medicamento
             </button>
           </div>
@@ -1247,7 +1427,7 @@ function Home({ onLogout }) {
 
         <div className="add-card lembrete-card">
           <div className="card-header-modern">
-            <div className="card-icon-large">🔔</div>
+            <div className="card-icon-large"><Widget type="bell" /></div>
             <div className="card-title-section">
               <h3>Novo Lembrete</h3>
               <p>Crie lembretes importantes para sua saúde</p>
@@ -1256,7 +1436,7 @@ function Home({ onLogout }) {
           
           <div className="form-modern">
             <div className="input-group">
-              <label>Título do Lembrete</label>
+              <label>Título do lembrete</label>
               <input
                 type="text"
                 placeholder="Ex: Consulta médica, Exame de sangue..."
@@ -1268,7 +1448,7 @@ function Home({ onLogout }) {
             </div>
             
             <div className="input-group">
-              <label>Descrição (Opcional)</label>
+              <label>Descrição (opcional)</label>
               <textarea
                 placeholder="Adicione detalhes sobre o lembrete..."
                 value={novoLembrete.descricao}
@@ -1307,7 +1487,7 @@ function Home({ onLogout }) {
               className="btn-add-modern lembrete"
               type="button"
             >
-              <span className="btn-icon">🔔</span>
+              <Widget type="bell" className="btn-icon" />
               Adicionar Lembrete
             </button>
           </div>
@@ -1315,24 +1495,24 @@ function Home({ onLogout }) {
       </div>
       
       <div className="tips-section">
-        <h3>💡 Dicas Importantes</h3>
+        <h3><Widget type="sparkle" className="title-widget" />Dicas Importantes</h3>
         <div className="tips-grid">
           <div className="tip-card">
-            <span className="tip-icon">⏰</span>
+            <span className="tip-icon"><Widget type="time" /></span>
             <div>
               <h4>Horários Regulares</h4>
               <p>Mantenha sempre os mesmos horários para melhor eficácia</p>
             </div>
           </div>
           <div className="tip-card">
-            <span className="tip-icon">📋</span>
+            <span className="tip-icon"><Widget type="list" /></span>
             <div>
               <h4>Informações Completas</h4>
               <p>Preencha todos os campos para um controle mais preciso</p>
             </div>
           </div>
           <div className="tip-card">
-            <span className="tip-icon">👨‍⚕️</span>
+            <span className="tip-icon"><Widget type="doctor" /></span>
             <div>
               <h4>Orientação Médica</h4>
               <p>Sempre siga as orientações do seu médico</p>
@@ -1346,7 +1526,7 @@ function Home({ onLogout }) {
   const confirmarHistorico = async (id) => {
     try {
       const resp = await fetch(`${API_BASE_URL}/api/historico/${id}/confirmar`, { method: 'PATCH' })
-      if (resp.ok) { showToastMessage('✅ Uso confirmado!'); carregarHistoricoCompleto() }
+      if (resp.ok) { showToastMessage('Uso confirmado!'); carregarHistoricoCompleto() }
     } catch { showToastMessage('Erro ao confirmar') }
   }
 
@@ -1360,10 +1540,10 @@ function Home({ onLogout }) {
   const renderHistorico = () => {
     const getStatusIcon = (status) => {
       switch(status) {
-        case 'CONFIRMADO': return '✅'
-        case 'IGNORADO': return '❌'
-        case 'PENDENTE': return '⏳'
-        default: return '📋'
+        case 'CONFIRMADO': return <Widget type="checklist" />
+        case 'IGNORADO': return <Widget type="delete" />
+        case 'PENDENTE': return <Widget type="time" />
+        default: return <Widget type="list" />
       }
     }
     const getStatusColor = (status) => {
@@ -1374,17 +1554,29 @@ function Home({ onLogout }) {
         default: return '#6b7280'
       }
     }
+    const filteredHistorico = Array.isArray(historicoCompleto) ? historicoCompleto.filter((item) => {
+      if (historyFilter === 'all') return true
+      const date = item.dataConfirmacao ? new Date(item.dataConfirmacao) : null
+      if (!date || Number.isNaN(date.getTime())) return false
+      const diffDays = (new Date() - date) / (1000 * 60 * 60 * 24)
+      return historyFilter === 'week' ? diffDays <= 7 : diffDays <= 31
+    }) : []
     return (
       <>
         <h2 className="section-title">Histórico de Medicamentos</h2>
+        <div className="history-tabs" aria-label="Filtrar histórico por período">
+          <button className={historyFilter === 'week' ? 'active' : ''} onClick={() => setHistoryFilter('week')}>Esta semana</button>
+          <button className={historyFilter === 'month' ? 'active' : ''} onClick={() => setHistoryFilter('month')}>Este mês</button>
+          <button className={historyFilter === 'all' ? 'active' : ''} onClick={() => setHistoryFilter('all')}>Todos</button>
+        </div>
         <div className="historico">
-          {!Array.isArray(historicoCompleto) || historicoCompleto.length === 0 ? (
+          {filteredHistorico.length === 0 ? (
             <div className="card" style={{textAlign: 'center', padding: '40px', color: '#666'}}>
-              <h3>📋 Nenhum histórico ainda</h3>
+              <h3><Widget type="list" className="title-widget" />Nenhum histórico ainda</h3>
               <p>Marque medicamentos como tomados para ver o histórico aqui.</p>
             </div>
           ) : (
-            historicoCompleto.map((item, index) => {
+            filteredHistorico.map((item, index) => {
               const dataConfirmacao = item.dataConfirmacao ? new Date(item.dataConfirmacao) : null
               const hoje = new Date()
               const ontem = new Date(hoje); ontem.setDate(hoje.getDate() - 1)
@@ -1393,6 +1585,8 @@ function Home({ onLogout }) {
                 if (dataConfirmacao.toDateString() === hoje.toDateString()) dataTexto = 'Hoje'
                 else if (dataConfirmacao.toDateString() === ontem.toDateString()) dataTexto = 'Ontem'
               }
+              const observacaoTexto = typeof item.observacoes === 'string' ? item.observacoes.trim().toLowerCase() : ''
+              const isDurationOnly = ['1 semana', '1semana', '1-semana'].includes(observacaoTexto)
               return (
                 <div key={index} className="card historico-item">
                   <div className="historico-header">
@@ -1401,7 +1595,7 @@ function Home({ onLogout }) {
                     </div>
                     <div className="historico-info">
                       <h4>{item.nome} {item.dosagem}</h4>
-                      <span className="historico-acao">{item.status}</span>
+                      <span className="historico-acao">{item.status}{item.duracao ? ` · ${item.duracao}` : ' · 1 semana'}</span>
                     </div>
                     <div className="historico-time">
                       <span>{dataTexto}</span>
@@ -1410,11 +1604,11 @@ function Home({ onLogout }) {
                   </div>
                   {item.status === 'PENDENTE' && (
                     <div style={{display: 'flex', gap: '8px', marginTop: '10px'}}>
-                      <button onClick={() => confirmarHistorico(item.id)} style={{flex: 1, padding: '8px', backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer'}}>✅ Confirmar</button>
-                      <button onClick={() => ignorarHistorico(item.id)} style={{flex: 1, padding: '8px', backgroundColor: '#ef4444', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer'}}>❌ Ignorar</button>
+                      <button onClick={() => confirmarHistorico(item.id)} style={{flex: 1, padding: '8px', backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer'}}><Widget type="checklist" /> Confirmar</button>
+                      <button onClick={() => ignorarHistorico(item.id)} style={{flex: 1, padding: '8px', backgroundColor: '#ef4444', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer'}}><Widget type="delete" /> Ignorar</button>
                     </div>
                   )}
-                  {item.observacoes && <div className="historico-detalhes"><p>{item.observacoes}</p></div>}
+                  {item.observacoes && !isDurationOnly && <div className="historico-detalhes"><p>{item.observacoes}</p></div>}
                 </div>
               )
             })
@@ -1438,7 +1632,7 @@ function Home({ onLogout }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           nome: perfil.nome,
-          senha: perfil.senha === '******' ? usuarioAtual.senha : perfil.senha,
+          ...(perfil.senha !== '******' && perfil.senha ? { senha: perfil.senha } : {}),
           email: perfil.email,
           idade: parseInt(perfil.idade) || usuarioAtual.idade || null,
           comorbidade: perfil.comorbidade
@@ -1457,7 +1651,7 @@ function Home({ onLogout }) {
           comorbidade: perfil.comorbidade
         }))
         
-        showToastMessage('✅ Perfil atualizado com sucesso!')
+        showToastMessage('Perfil atualizado com sucesso!')
         setShowProfileModal(false)
       } else {
         throw new Error('Erro no backend')
@@ -1489,7 +1683,7 @@ function Home({ onLogout }) {
         localStorage.setItem('usuariosCadastrados', JSON.stringify(usuariosCadastrados))
       }
       
-      showToastMessage('✅ Perfil atualizado com sucesso!')
+      showToastMessage('Perfil atualizado com sucesso!')
       setShowProfileModal(false)
     }
   }
@@ -1506,7 +1700,7 @@ function Home({ onLogout }) {
     e.preventDefault()
     
     if (!editProfile.nome || !editProfile.senhaAtual || !editProfile.novaSenha) {
-      showToastMessage('⚠️ Preencha todos os campos!')
+      showToastMessage('Preencha todos os campos!')
       return
     }
     
@@ -1526,7 +1720,7 @@ function Home({ onLogout }) {
       if (response.ok) {
         sessionStorage.setItem('userName', editProfile.nome)
         setPerfil({...perfil, nome: editProfile.nome})
-        showToastMessage('✅ Nome e senha atualizados com sucesso!')
+        showToastMessage('Nome e senha atualizados com sucesso!')
         setShowEditProfileModal(false)
         setEditProfile({ nome: '', senhaAtual: '', novaSenha: '' })
       } else {
@@ -1552,14 +1746,14 @@ function Home({ onLogout }) {
           localStorage.setItem('usuariosCadastrados', JSON.stringify(usuariosCadastrados))
           sessionStorage.setItem('userName', editProfile.nome)
           setPerfil({...perfil, nome: editProfile.nome})
-          showToastMessage('✅ Nome e senha atualizados com sucesso!')
+          showToastMessage('Nome e senha atualizados com sucesso!')
           setShowEditProfileModal(false)
           setEditProfile({ nome: '', senhaAtual: '', novaSenha: '' })
         } else {
-          showToastMessage('⚠️ Senha atual incorreta!')
+          showToastMessage('Senha atual incorreta!')
         }
       } else {
-        showToastMessage('⚠️ Usuário não encontrado!')
+        showToastMessage('Usuário não encontrado!')
       }
     }
   }
@@ -1568,11 +1762,11 @@ function Home({ onLogout }) {
     e.preventDefault()
     
     if (!deleteAccountData.senhaAtual) {
-      showToastMessage('⚠️ Digite sua senha para confirmar!')
+      showToastMessage('Digite sua senha para confirmar!')
       return
     }
     
-    if (!window.confirm('⚠️ ATENÇÃO: Esta ação é irreversível! Todos os seus dados serão perdidos permanentemente. Tem certeza que deseja excluir sua conta?')) {
+    if (!window.confirm('ATENÇÃO: Esta ação é irreversível! Todos os seus dados serão perdidos permanentemente. Tem certeza que deseja excluir sua conta?')) {
       return
     }
     
@@ -1589,7 +1783,7 @@ function Home({ onLogout }) {
       })
       
       if (response.ok) {
-        showToastMessage('✅ Conta excluída com sucesso!')
+        showToastMessage('Conta excluída com sucesso!')
         setTimeout(() => {
           sessionStorage.clear()
           localStorage.removeItem('medicamentos')
@@ -1617,7 +1811,7 @@ function Home({ onLogout }) {
           usuariosCadastrados.splice(userIndex, 1)
           localStorage.setItem('usuariosCadastrados', JSON.stringify(usuariosCadastrados))
           
-          showToastMessage('✅ Conta excluída com sucesso!')
+          showToastMessage('Conta excluída com sucesso!')
           setTimeout(() => {
             sessionStorage.clear()
             localStorage.removeItem('medicamentos')
@@ -1627,10 +1821,10 @@ function Home({ onLogout }) {
             onLogout()
           }, 2000)
         } else {
-          showToastMessage('⚠️ Senha incorreta!')
+          showToastMessage('Senha incorreta!')
         }
       } else {
-        showToastMessage('⚠️ Usuário não encontrado!')
+        showToastMessage('Usuário não encontrado!')
       }
     }
   }
@@ -1643,28 +1837,28 @@ function Home({ onLogout }) {
 
           <h4>Notificações</h4>
           <label>
+            <span>Lembrete de medicamentos</span>
             <input type="checkbox" defaultChecked />
-            Lembrete de medicamentos
           </label>
           <label>
+            <span>Notificações push</span>
             <input type="checkbox" defaultChecked />
-            Notificações push
           </label>
           <label>
+            <span>Modo escuro</span>
             <input 
               type="checkbox" 
               checked={darkMode}
               onChange={(e) => setDarkMode(e.target.checked)}
             />
-            Modo escuro
           </label>
           <label>
+            <span>Modo de Acessibilidade (Letras Grandes)</span>
             <input 
               type="checkbox" 
               checked={accessibilityMode}
               onChange={toggleAccessibilityMode}
             />
-            Modo de Acessibilidade (Letras Grandes)
           </label>
 
         </div>
@@ -1692,51 +1886,32 @@ function Home({ onLogout }) {
               <span>******</span>
             </div>
           </div>
-          <button 
-            onClick={() => {
-              setEditProfile({
-                nome: perfil.nome,
-                senhaAtual: '',
-                novaSenha: ''
-              })
-              setShowEditProfileModal(true)
-            }}
-            style={{
-              width: '100%',
-              marginTop: '15px',
-              padding: '12px 20px',
-              backgroundColor: '#3b82f6',
-              color: 'white',
-              border: 'none',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              fontSize: '16px',
-              fontWeight: '600'
-            }}
-          >
-            ✏️ Editar Senha e Nome
-          </button>
-          <button 
-            onClick={() => {
-              setDeleteAccountData({ senhaAtual: '' })
-              setShowDeleteAccountModal(true)
-            }}
-            style={{
-              width: '100%',
-              marginTop: '10px',
-              padding: '12px 20px',
-              backgroundColor: '#ef4444',
-              color: 'white',
-              border: 'none',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              fontSize: '16px',
-              fontWeight: '600'
-            }}
-          >
-            🗑️ Excluir Conta
-          </button>
-          
+          <div className="settings-actions">
+            <button 
+              onClick={() => {
+                setEditProfile({
+                  nome: perfil.nome,
+                  senhaAtual: '',
+                  novaSenha: ''
+                })
+                setShowEditProfileModal(true)
+              }}
+              className="settings-action settings-action--primary"
+            >
+              <Widget type="edit" className="btn-icon" />
+              Editar Senha e Nome
+            </button>
+            <button 
+              onClick={() => {
+                setDeleteAccountData({ senhaAtual: '' })
+                setShowDeleteAccountModal(true)
+              }}
+              className="settings-action settings-action--danger"
+            >
+              <Widget type="delete" className="btn-icon" />
+              Excluir Conta
+            </button>
+          </div>
 
         </div>
       </div>
@@ -1744,7 +1919,7 @@ function Home({ onLogout }) {
       {showProfileModal && (
         <div className="modal-overlay" onClick={() => setShowProfileModal(false)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h3>✏️ Editar Perfil</h3>
+            <h3><Widget type="edit" className="title-widget" />Editar Perfil</h3>
             <form onSubmit={handleSavePerfil} className="profile-form">
               <input
                 type="text"
@@ -1840,7 +2015,7 @@ function Home({ onLogout }) {
       {showEditProfileModal && (
         <div className="modal-overlay" onClick={() => setShowEditProfileModal(false)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h3>✏️ Editar Senha e Nome</h3>
+            <h3><Widget type="edit" className="title-widget" />Editar Senha e Nome</h3>
             <form onSubmit={handleSaveProfileEdit} className="profile-form">
               <input
                 type="text"
@@ -1936,7 +2111,7 @@ function Home({ onLogout }) {
       <h2 className="section-title">Painel Administrativo</h2>
         <div className="admin-panel">
           <div className="card">
-            <h3>👥 Usuários Cadastrados ({adminData.usuarios.length})</h3>
+            <h3><Widget type="users" className="title-widget" />Usuários Cadastrados ({adminData.usuarios.length})</h3>
             <div className="usuarios-list">
               <div className="usuario-item header">
                 <span>Nome</span>
@@ -1954,7 +2129,7 @@ function Home({ onLogout }) {
                     <span>{usuario.nome}</span>
                     <span>{usuario.email}</span>
                     <span>{new Date(usuario.dataCadastro).toLocaleDateString('pt-BR')}</span>
-                    <span>{usuario.senha || '******'}</span>
+                    <span>******</span>
                   </div>
                 ))
               )}
@@ -1962,7 +2137,7 @@ function Home({ onLogout }) {
           </div>
           
           <div className="card">
-            <h3>📊 Estatísticas</h3>
+            <h3><Widget type="chart" className="title-widget" />Estatísticas</h3>
             <div className="item">
               <span>Total de usuários:</span>
               <span>{adminData.estatisticas.total || 0}</span>
@@ -2001,94 +2176,34 @@ function Home({ onLogout }) {
             <img className="logo-icon" src={pharmalifeLogo} alt="Logo PharmaLife" />
             <h1>PharmaLife</h1>
           </div>
-          <div style={{display: 'flex', flexDirection: 'column', gap: '8px'}}>
-            <button 
-              className="accessibility-toggle"
-              onClick={toggleAccessibilityMode}
-              title={accessibilityMode ? 'Desativar modo de acessibilidade' : 'Ativar modo de acessibilidade - Letras maiores'}
-            >
-              {accessibilityMode ? '🔍 Normal' : '🔍 Grande'}
-            </button>
-            <button 
-              onClick={() => {
-                setEditProfile({
-                  nome: perfil.nome,
-                  senhaAtual: '',
-                  novaSenha: ''
-                })
-                setShowEditProfileModal(true)
-              }}
-              style={{
-                background: 'rgba(59, 130, 246, 0.2)',
-                color: 'white',
-                border: '2px solid rgba(59, 130, 246, 0.3)',
-                padding: '0.5rem 1rem',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                fontSize: '0.8rem',
-                fontWeight: '600'
-              }}
-            >
-              ✏️ Editar
-            </button>
-            <button 
-              onClick={() => {
-                setDeleteAccountData({ senhaAtual: '' })
-                setShowDeleteAccountModal(true)
-              }}
-              style={{
-                background: 'rgba(239, 68, 68, 0.2)',
-                color: 'white',
-                border: '2px solid rgba(239, 68, 68, 0.3)',
-                padding: '0.5rem 1rem',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                fontSize: '0.8rem',
-                fontWeight: '600'
-              }}
-            >
-              🗑️ Excluir
-            </button>
-            <button 
-              onClick={onLogout}
-              style={{
-                background: 'rgba(239, 68, 68, 0.2)',
-                color: 'white',
-                border: '2px solid rgba(239, 68, 68, 0.3)',
-                padding: '0.5rem 1rem',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                fontSize: '0.8rem',
-                fontWeight: '600'
-              }}
-            >
-              🚪 Sair
-            </button>
-          </div>
         </div>
         <nav className="nav-buttons">
           <button 
             className={activeSection === 'dashboard' ? 'active' : ''} 
             onClick={() => setActiveSection('dashboard')}
           >
+            <Widget type="chart" className="nav-icon" />
             Página Inicial
           </button>
           <button 
             className={activeSection === 'agenda' ? 'active' : ''} 
             onClick={() => setActiveSection('agenda')}
           >
+            <Widget type="list" className="nav-icon" />
             Agenda
           </button>
           <button 
             className={activeSection === 'adicionar' ? 'active' : ''} 
             onClick={() => setActiveSection('adicionar')}
           >
+            <Widget type="add" className="nav-icon" />
             Adicionar
           </button>
           <button 
             className={activeSection === 'historico' ? 'active' : ''} 
             onClick={() => setActiveSection('historico')}
           >
+            <Widget type="time" className="nav-icon" />
             Histórico
           </button>
 
@@ -2096,18 +2211,21 @@ function Home({ onLogout }) {
             className={activeSection === 'configuracoes' ? 'active' : ''} 
             onClick={() => setActiveSection('configuracoes')}
           >
+            <Widget type="settings" className="nav-icon" />
             Configurações
           </button>
           <button 
             className={activeSection === 'sobre' ? 'active' : ''} 
             onClick={() => setActiveSection('sobre')}
           >
+            <Widget type="users" className="nav-icon" />
             Sobre Nós
           </button>
           <button 
             className={activeSection === 'ajuda' ? 'active' : ''} 
             onClick={() => setActiveSection('ajuda')}
           >
+            <Widget type="bell" className="nav-icon" />
             Ajuda
           </button>
           {isAdmin && (
@@ -2115,10 +2233,18 @@ function Home({ onLogout }) {
               className={activeSection === 'admin' ? 'active' : ''} 
               onClick={() => setActiveSection('admin')}
             >
+              <Widget type="users" className="nav-icon" />
               Admin
             </button>
           )}
         </nav>
+        <div className="sidebar-user">
+          <div className="user-avatar">{(perfil.nome || sessionStorage.getItem('userName') || 'U').charAt(0).toUpperCase()}</div>
+          <div className="user-summary">
+            <strong>{perfil.nome || sessionStorage.getItem('userName') || 'Usuário'}</strong>
+            <button onClick={onLogout}><Widget type="logout" className="btn-icon" />Sair</button>
+          </div>
+        </div>
       </aside>
       
       <main className="main-content">
@@ -2182,7 +2308,7 @@ function Home({ onLogout }) {
         {showEditProfileModal && (
           <div className="modal-overlay" onClick={() => setShowEditProfileModal(false)}>
             <div className="modal" onClick={(e) => e.stopPropagation()}>
-              <h3>✏️ Editar Senha e Nome</h3>
+              <h3><Widget type="edit" className="title-widget" />Editar Senha e Nome</h3>
               <form onSubmit={handleSaveProfileEdit} className="profile-form">
                 <input
                   type="text"
@@ -2217,9 +2343,9 @@ function Home({ onLogout }) {
         {showDeleteAccountModal && (
           <div className="modal-overlay" onClick={() => setShowDeleteAccountModal(false)}>
             <div className="modal" onClick={(e) => e.stopPropagation()}>
-              <h3 style={{color: '#ef4444'}}>🗑️ Excluir Conta</h3>
+              <h3 style={{color: '#ef4444'}}><Widget type="delete" className="title-widget" />Excluir Conta</h3>
               <div style={{marginBottom: '20px', padding: '15px', backgroundColor: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px'}}>
-                <p style={{color: '#dc2626', fontWeight: '600', margin: '0 0 10px 0'}}>⚠️ ATENÇÃO:</p>
+                <p style={{color: '#dc2626', fontWeight: '600', margin: '0 0 10px 0'}}><Widget type="warning" className="title-widget" />ATENÇÃO:</p>
                 <p style={{color: '#7f1d1d', margin: '0', fontSize: '14px'}}>Esta ação é irreversível! Todos os seus medicamentos, histórico e dados pessoais serão perdidos permanentemente.</p>
               </div>
               <form onSubmit={handleDeleteAccount} className="profile-form">

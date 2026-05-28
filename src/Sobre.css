@@ -1,19 +1,20 @@
 .sobre-container {
   min-height: 100vh;
-  background: linear-gradient(135deg, #e3f2fd 0%, #b3e5fc 100%);
-  padding: 2rem;
+  background: #FFFFFF;
+  padding: 0;
   display: flex;
   justify-content: center;
-  align-items: center;
+  align-items: flex-start;
 }
 
 .sobre-content {
   background: white;
-  border-radius: 20px;
-  padding: 3rem;
-  max-width: 900px;
+  border: 0;
+  border-radius: 12px;
+  padding: 2rem;
+  max-width: 980px;
   width: 100%;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
 }
 
 .sobre-header {
@@ -22,8 +23,8 @@
 }
 
 .sobre-header h1 {
-  color: #333;
-  font-size: 2.5rem;
+  color: #1A3A6B;
+  font-size: 24px;
   margin-bottom: 1rem;
   font-weight: 600;
 }
@@ -39,15 +40,16 @@
 }
 
 .projeto-info h2 {
-  color: #1976d2;
-  font-size: 1.8rem;
+  color: #1A3A6B;
+  font-size: 18px;
+  font-weight: 500;
   margin-bottom: 1.5rem;
   border-bottom: 2px solid #e3f2fd;
   padding-bottom: 0.5rem;
 }
 
 .projeto-info p {
-  color: #666;
+  color: #6B7280;
   line-height: 1.6;
   margin-bottom: 1rem;
   font-size: 1.1rem;
@@ -58,8 +60,9 @@
 }
 
 .equipe-info h2 {
-  color: #1976d2;
-  font-size: 1.8rem;
+  color: #1A3A6B;
+  font-size: 18px;
+  font-weight: 500;
   margin-bottom: 2rem;
   text-align: center;
   border-bottom: 2px solid #e3f2fd;
@@ -68,45 +71,54 @@
 
 .integrantes-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 1.5rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
   margin-top: 2rem;
 }
 
 .integrante-card {
-  background: #f8f9fa;
-  padding: 1.5rem;
+  background: #fff;
+  padding: 1rem;
   border-radius: 12px;
-  text-align: center;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 14px;
   transition: all 0.3s ease;
-  border: 2px solid transparent;
+  border: 1px solid #E5E7EB;
 }
 
 .integrante-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
-  border-color: #e3f2fd;
+  transform: none;
+  box-shadow: none;
+  border-color: rgba(26, 58, 107, 0.28);
+  background: #F3F7FC;
 }
 
 .integrante-avatar {
-  background: #e3f2fd;
-  width: 70px;
-  height: 70px;
+  background: #EBF4FF;
+  color: #1A3A6B;
+  font-weight: 800;
+  font-size: 20px;
+  width: 56px;
+  height: 56px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 0 auto 1rem auto;
+  margin: 0;
+  flex: 0 0 auto;
 }
 
 .integrante-card h3 {
-  color: #333;
-  margin-bottom: 0.5rem;
-  font-size: 1.2rem;
+  color: #111827;
+  margin: 0 0 0.35rem;
+  font-size: 1rem;
+  font-weight: 700;
 }
 
 .integrante-card p {
-  color: #666;
+  color: #6B7280;
   font-size: 0.9rem;
   margin: 0;
 }
@@ -116,8 +128,9 @@
 }
 
 .tecnologias h2 {
-  color: #1976d2;
-  font-size: 1.8rem;
+  color: #1A3A6B;
+  font-size: 18px;
+  font-weight: 500;
   margin-bottom: 1.5rem;
   border-bottom: 2px solid #e3f2fd;
   padding-bottom: 0.5rem;
@@ -131,7 +144,7 @@
 }
 
 .tech-item {
-  background: #1976d2;
+  background: #1A3A6B;
   color: white;
   padding: 0.5rem 1rem;
   border-radius: 20px;
@@ -159,7 +172,7 @@
   }
   
   .integrantes-grid {
-    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    grid-template-columns: 1fr;
     gap: 1rem;
   }
   

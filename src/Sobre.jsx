@@ -16,7 +16,8 @@ function Sobre() {
           <h1>Sobre Nós</h1>
           <div className="logo-sobre">
             <svg width="80" height="80" viewBox="0 0 24 24" fill="none">
-              <path d="M12 2C13.1 2 14 2.9 14 4C14 5.1 13.1 6 12 6C10.9 6 10 5.1 10 4C10 2.9 10.9 2 12 2ZM21 9V7L15 1H5C3.89 1 3 1.89 3 3V21C3 22.1 3.89 23 5 23H19C20.1 23 21 22.1 21 21V9M19 9H14V4H19V9Z" fill="#1976d2"/>
+              <path d="M10 21 3 14a5 5 0 0 1 7-7l7 7a5 5 0 0 1-7 7Z" stroke="#1A3A6B" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="m8.5 8.5 7 7" stroke="#10B981" strokeWidth="1.8" strokeLinecap="round"/>
             </svg>
           </div>
         </div>
@@ -44,9 +45,7 @@ function Sobre() {
             {integrantes.map((integrante, index) => (
               <div key={index} className="integrante-card">
                 <div className="integrante-avatar">
-                  <svg width="50" height="50" viewBox="0 0 24 24" fill="none">
-                    <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" fill="#666"/>
-                  </svg>
+                  {integrante.nome.charAt(0)}
                 </div>
                 <h3>{integrante.nome}</h3>
                 <p>{integrante.papel}</p>
