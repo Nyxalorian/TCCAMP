@@ -3,7 +3,7 @@ import './Sobre.css'
 function Sobre() {
   const integrantes = [
     { nome: 'Maycon', papel: 'Programador' },
-    { nome: 'Adriel', papel: 'Documentação' },
+    { nome: 'Adriel', papel: 'Programador' },
     { nome: 'Felipe', papel: 'Design' },
     { nome: 'Caio', papel: 'Documentação' },
     { nome: 'Murilo', papel: 'Gerente' }
