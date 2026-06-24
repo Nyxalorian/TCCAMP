@@ -1,14 +1,9 @@
-// Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
+import { getAuth, GoogleAuthProvider } from "firebase/auth";
 
-// Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
   apiKey: "AIzaSyBdIu1RE64VLwQ5WqqcDfrWc9tZrEfF0Mc",
-  authDomain: "pharmalife-81306.firebaseapp.com",
+  authDomain: "pharmalife-81306.web.app",
   projectId: "pharmalife-81306",
   storageBucket: "pharmalife-81306.firebasestorage.app",
   messagingSenderId: "1059789863146",
@@ -16,6 +11,7 @@ const firebaseConfig = {
   measurementId: "G-XLK1NEMCY0"
 };
 
-// Initialize Firebase
 const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
+
+export const auth = getAuth(app);
+export const provider = new GoogleAuthProvider();

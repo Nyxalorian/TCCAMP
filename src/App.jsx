@@ -1,9 +1,14 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { getRedirectResult } from 'firebase/auth'
+import { auth } from './firebase'
 import Login from './Login'
 import Cadastro from './Cadastro'
 import Home from './Home'
 import './App.css'
 import './Accessibility.css'
+import API_CONFIG from './config'
+
+const API_BASE_URL = API_CONFIG.BASE_URL
 
 function Widget({ className = '' }) {
   return (
@@ -24,6 +29,46 @@ function App() {
   const [accessibilityMode, setAccessibilityMode] = useState(() => {
     return localStorage.getItem('accessibilityMode') === 'true'
   })
+
+  useEffect(() => {
+    const checkRedirect = async () => {
+      console.log('🔍 Verificando redirect...')
+      try {
+        const result = await getRedirectResult(auth)
+        console.log('📦 Resultado do redirect:', result)
+        if (!result) {
+          console.log('❌ Nenhum resultado de redirect encontrado')
+          return
+        }
+
+        console.log('✅ Usuário Google:', result.user.email)
+        const token = await result.user.getIdToken()
+        console.log('🎫 Token gerado:', token.substring(0, 20) + '...')
+
+        const response = await fetch(`${API_BASE_URL}/api/usuarios/google-login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token })
+        })
+
+        console.log('📡 Resposta do backend:', response.status)
+
+        if (!response.ok) throw new Error('Erro ao autenticar com Google')
+
+        const data = await response.json()
+        localStorage.setItem('usuario', JSON.stringify(data))
+        sessionStorage.setItem('userName', data.nome)
+        sessionStorage.setItem('userEmail', data.email)
+        sessionStorage.setItem('userId', data.id)
+        handleLogin(data)
+      } catch (error) {
+        console.error('💥 Erro:', error)
+        alert(error.message || 'Erro no login Google')
+      }
+    }
+
+    checkRedirect()
+  }, [])
 
   const handleLogin = (userData) => {
     setIsLoggedIn(true)
@@ -52,7 +97,7 @@ function App() {
     return (
       <div className={`auth-shell ${accessibilityMode ? 'accessibility-mode' : ''}`.trim()}>
         <div className="accessibility-header">
-          <button 
+          <button
             className="accessibility-toggle-login"
             onClick={toggleAccessibilityMode}
             title={accessibilityMode ? 'Desativar modo de acessibilidade' : 'Ativar modo de acessibilidade - Letras maiores'}
@@ -69,7 +114,7 @@ function App() {
   return (
     <div className={`auth-shell ${accessibilityMode ? 'accessibility-mode' : ''}`.trim()}>
       <div className="accessibility-header">
-        <button 
+        <button
           className="accessibility-toggle-login"
           onClick={toggleAccessibilityMode}
           title={accessibilityMode ? 'Desativar modo de acessibilidade' : 'Ativar modo de acessibilidade - Letras maiores'}

@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react'
+import { signInWithRedirect, getRedirectResult } from 'firebase/auth'
+import { auth, provider } from './firebase'
 import './Login.css'
 import API_CONFIG from './config'
 
@@ -14,7 +16,6 @@ function Login({ onGoToCadastro, onLogin }) {
 
   const handleChange = (e) => {
     const { name, value } = e.target
-
     setFormData((prev) => ({
       ...prev,
       [name]: value
@@ -22,8 +23,63 @@ function Login({ onGoToCadastro, onLogin }) {
   }
 
   useEffect(() => {
-    document.title = 'PharmaLife - Login'
-  }, [])
+  document.title = 'PharmaLife - Login'
+
+  const checkRedirect = async () => {
+    try {
+      console.log("=== CHECK REDIRECT INICIADO ===")
+
+      const result = await getRedirectResult(auth)
+
+      console.log("Resultado redirect:", result)
+
+      if (!result) {
+        console.log("Nenhum resultado encontrado")
+        return
+      }
+
+      console.log("Usuário Firebase:", result.user)
+
+      setLoading(true)
+
+      const token = await result.user.getIdToken()
+
+      console.log("Token obtido")
+
+      const response = await fetch(`${API_BASE_URL}/api/usuarios/google-login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token })
+      })
+
+      console.log("Status backend:", response.status)
+
+      if (!response.ok) {
+        throw new Error('Erro ao autenticar com Google')
+      }
+
+      const data = await response.json()
+
+      console.log("Resposta backend:", data)
+
+      localStorage.setItem('usuario', JSON.stringify(data))
+      sessionStorage.setItem('userName', data.nome)
+      sessionStorage.setItem('userEmail', data.email)
+      sessionStorage.setItem('userId', data.id)
+
+      onLogin(data)
+
+    } catch (error) {
+      console.error("Erro Google Login:", error)
+      alert(error.message || 'Erro no login Google')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  checkRedirect()
+}, [])
+
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -32,33 +88,35 @@ function Login({ onGoToCadastro, onLogin }) {
     try {
       const response = await fetch(`${API_BASE_URL}/api/usuarios/login`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email: formData.email,
           senha: formData.senha
         })
       })
 
-      if (!response.ok) {
-        throw new Error('Credenciais inválidas')
-      }
+      if (!response.ok) throw new Error('Credenciais inválidas')
 
       const data = await response.json()
-
-      // armazenamento mais organizado
       localStorage.setItem('usuario', JSON.stringify(data))
       sessionStorage.setItem('userName', data.nome)
       sessionStorage.setItem('userEmail', data.email)
       sessionStorage.setItem('userId', data.id)
-
       onLogin(data)
     } catch (error) {
       console.error(error)
       alert(error.message || 'Erro ao fazer login')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleGoogleLogin = async () => {
+    try {
+      await signInWithRedirect(auth, provider)
+    } catch (error) {
+      console.error(error)
+      alert('Erro ao iniciar login com Google')
     }
   }
 
@@ -99,6 +157,15 @@ function Login({ onGoToCadastro, onLogin }) {
           <button type="submit" className="login-btn" disabled={loading}>
             {loading ? 'Entrando...' : 'Login'}
           </button>
+
+          <button
+            type="button"
+            className="login-btn"
+            onClick={handleGoogleLogin}
+            disabled={loading}
+          >
+            Entrar com Google
+          </button>
         </form>
 
         <div className="signup-link">
@@ -109,7 +176,9 @@ function Login({ onGoToCadastro, onLogin }) {
         </div>
       </div>
     </div>
+    
   )
 }
+
 
 export default Login
