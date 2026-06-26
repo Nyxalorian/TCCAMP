@@ -56,11 +56,17 @@ function App() {
         if (!response.ok) throw new Error('Erro ao autenticar com Google')
 
         const data = await response.json()
-        localStorage.setItem('usuario', JSON.stringify(data))
-        sessionStorage.setItem('userName', data.nome)
-        sessionStorage.setItem('userEmail', data.email)
-        sessionStorage.setItem('userId', data.id)
-        handleLogin(data)
+
+data.foto = result.user.photoURL || ''
+
+localStorage.setItem('usuario', JSON.stringify(data))
+
+sessionStorage.setItem('userName', data.nome)
+sessionStorage.setItem('userEmail', data.email)
+sessionStorage.setItem('userId', data.id)
+sessionStorage.setItem('userPhoto', data.foto)
+
+handleLogin(data)
       } catch (error) {
         console.error('💥 Erro:', error)
         alert(error.message || 'Erro no login Google')
@@ -71,12 +77,17 @@ function App() {
   }, [])
 
   const handleLogin = (userData) => {
-    setIsLoggedIn(true)
-    sessionStorage.setItem('isLoggedIn', 'true')
-    if (userData && userData.nome) {
-      sessionStorage.setItem('userName', userData.nome)
-    }
+  setIsLoggedIn(true)
+
+  sessionStorage.setItem('isLoggedIn', 'true')
+  sessionStorage.setItem('userName', userData.nome || '')
+  sessionStorage.setItem('userEmail', userData.email || '')
+  sessionStorage.setItem('userId', userData.id || '')
+
+  if (userData.foto) {
+    sessionStorage.setItem('userPhoto', userData.foto)
   }
+}
 
   const handleLogout = () => {
     setIsLoggedIn(false)

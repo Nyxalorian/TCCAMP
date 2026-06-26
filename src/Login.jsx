@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { signInWithRedirect, getRedirectResult } from 'firebase/auth'
+import { signInWithRedirect } from 'firebase/auth'
 import { auth, provider } from './firebase'
 import './Login.css'
 import API_CONFIG from './config'
@@ -24,60 +24,6 @@ function Login({ onGoToCadastro, onLogin }) {
 
   useEffect(() => {
   document.title = 'PharmaLife - Login'
-
-  const checkRedirect = async () => {
-    try {
-      console.log("=== CHECK REDIRECT INICIADO ===")
-
-      const result = await getRedirectResult(auth)
-
-      console.log("Resultado redirect:", result)
-
-      if (!result) {
-        console.log("Nenhum resultado encontrado")
-        return
-      }
-
-      console.log("Usuário Firebase:", result.user)
-
-      setLoading(true)
-
-      const token = await result.user.getIdToken()
-
-      console.log("Token obtido")
-
-      const response = await fetch(`${API_BASE_URL}/api/usuarios/google-login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token })
-      })
-
-      console.log("Status backend:", response.status)
-
-      if (!response.ok) {
-        throw new Error('Erro ao autenticar com Google')
-      }
-
-      const data = await response.json()
-
-      console.log("Resposta backend:", data)
-
-      localStorage.setItem('usuario', JSON.stringify(data))
-      sessionStorage.setItem('userName', data.nome)
-      sessionStorage.setItem('userEmail', data.email)
-      sessionStorage.setItem('userId', data.id)
-
-      onLogin(data)
-
-    } catch (error) {
-      console.error("Erro Google Login:", error)
-      alert(error.message || 'Erro no login Google')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  checkRedirect()
 }, [])
 
 

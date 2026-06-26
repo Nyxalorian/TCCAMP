@@ -238,7 +238,8 @@ function Home({ onLogout }) {
     senha: '',
     email: '',
     idade: '',
-    comorbidade: ''
+    comorbidade: '',
+    foto: ''
   })
   const [darkMode, setDarkMode] = useState(false)
   const [accessibilityLevel, setAccessibilityLevel] = useState(() => {
@@ -1161,13 +1162,18 @@ function Home({ onLogout }) {
         const response = await fetch(`${API_BASE_URL}/api/usuarios/${userId}`)
         if (response.ok) {
           const usuario = await response.json()
-          setPerfil({
-            nome: usuario.nome,
-            senha: '******',
-            email: usuario.email,
-            idade: usuario.idade || '',
-            comorbidade: usuario.comorbidade || ''
-          })
+
+console.log("Usuário do backend:", usuario)
+console.log("Foto da sessão:", sessionStorage.getItem("userPhoto"))
+
+setPerfil({
+    nome: usuario.nome,
+    senha: '******',
+    email: usuario.email,
+    idade: usuario.idade || '',
+    comorbidade: usuario.comorbidade || '',
+    foto: usuario.foto || sessionStorage.getItem('userPhoto') || ''
+})
           // Atualizar sessionStorage com dados do backend
           sessionStorage.setItem('userName', usuario.nome)
           sessionStorage.setItem('userEmail', usuario.email)
@@ -2390,11 +2396,18 @@ function Home({ onLogout }) {
           )}
         </nav>
         <div className="sidebar-user">
-          <div className="user-avatar">{(perfil.nome || sessionStorage.getItem('userName') || 'U').charAt(0).toUpperCase()}</div>
-          <div className="user-summary">
-            <strong>{perfil.nome || sessionStorage.getItem('userName') || 'Usuário'}</strong>
-            <button onClick={onLogout}><Widget type="logout" className="btn-icon" />Sair</button>
-          </div>
+          <div className="user-avatar">
+  {(perfil.foto || sessionStorage.getItem('userPhoto')) ? (
+    <img
+      src={perfil.foto || sessionStorage.getItem('userPhoto')}
+      alt="Avatar"
+    />
+  ) : (
+    (perfil.nome || sessionStorage.getItem('userName') || 'U')
+      .charAt(0)
+      .toUpperCase()
+  )}
+</div>
         </div>
       </aside>
       
