@@ -7,9 +7,9 @@ import Home from './Home'
 import './App.css'
 import './Accessibility.css'
 import API_CONFIG from './config'
-
+ 
 const API_BASE_URL = API_CONFIG.BASE_URL
-
+ 
 function Widget({ className = '' }) {
   return (
     <span className={`ui-widget ${className}`.trim()} aria-hidden="true">
@@ -20,7 +20,7 @@ function Widget({ className = '' }) {
     </span>
   )
 }
-
+ 
 function App() {
   const [currentPage, setCurrentPage] = useState('cadastro')
   const [isLoggedIn, setIsLoggedIn] = useState(() => {
@@ -29,7 +29,13 @@ function App() {
   const [accessibilityMode, setAccessibilityMode] = useState(() => {
     return localStorage.getItem('accessibilityMode') === 'true'
   })
-
+ 
+  // ✅ NOVO: estado para guardar os dados do usuário (inclusive a foto)
+  const [userData, setUserData] = useState(() => {
+    const stored = sessionStorage.getItem('usuario')
+    return stored ? JSON.parse(stored) : null
+  })
+ 
   useEffect(() => {
     const checkRedirect = async () => {
       console.log('🔍 Verificando redirect...')
@@ -40,31 +46,31 @@ function App() {
           console.log('❌ Nenhum resultado de redirect encontrado')
           return
         }
-
+ 
         console.log('✅ Usuário Google:', result.user.email)
         const token = await result.user.getIdToken()
         console.log('🎫 Token gerado:', token.substring(0, 20) + '...')
-
+ 
         const response = await fetch(`${API_BASE_URL}/api/usuarios/google-login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ token })
         })
-
+ 
         console.log('📡 Resposta do backend:', response.status)
-
+ 
         if (!response.ok) throw new Error('Erro ao autenticar com Google')
+ 
+        const texto = await response.text()
+console.log("RESPOSTA DO BACKEND:", texto)
 
-        const data = await response.json()
+const data = JSON.parse(texto)
+
+console.log("DATA:", data)
 
 data.foto = result.user.photoURL || ''
 
-localStorage.setItem('usuario', JSON.stringify(data))
-
-sessionStorage.setItem('userName', data.nome)
-sessionStorage.setItem('userEmail', data.email)
-sessionStorage.setItem('userId', data.id)
-sessionStorage.setItem('userPhoto', data.foto)
+console.log("📷 Foto recebida:", data.foto)
 
 handleLogin(data)
       } catch (error) {
@@ -72,38 +78,57 @@ handleLogin(data)
         alert(error.message || 'Erro no login Google')
       }
     }
-
+ 
     checkRedirect()
   }, [])
+ 
+  const handleLogin = (data) => {
 
-  const handleLogin = (userData) => {
-  setIsLoggedIn(true)
+  console.log("========== HANDLE LOGIN ==========");
+  console.log("Data recebida:", data);
 
-  sessionStorage.setItem('isLoggedIn', 'true')
-  sessionStorage.setItem('userName', userData.nome || '')
-  sessionStorage.setItem('userEmail', userData.email || '')
-  sessionStorage.setItem('userId', userData.id || '')
+  const usuario = {
+    nome: data.nome || '',
+    email: data.email || '',
+    id: data.id || '',
+    foto: data.foto || '',
+  };
 
-  if (userData.foto) {
-    sessionStorage.setItem('userPhoto', userData.foto)
-  }
+  console.log("Objeto usuário:", usuario);
+
+  sessionStorage.setItem('isLoggedIn', 'true');
+  sessionStorage.setItem('usuario', JSON.stringify(usuario));
+  sessionStorage.setItem('userId', String(usuario.id));
+  sessionStorage.setItem('userName', usuario.nome);
+  sessionStorage.setItem('userEmail', usuario.email);
+  sessionStorage.setItem('userPhoto', usuario.foto || '');
+
+  console.log("Depois de salvar:");
+  console.log("usuario =", sessionStorage.getItem("usuario"));
+  console.log("userPhoto =", sessionStorage.getItem("userPhoto"));
+
+  setIsLoggedIn(true);
+  setUserData(usuario);
 }
-
+ 
   const handleLogout = () => {
     setIsLoggedIn(false)
+    setUserData(null) // ✅ NOVO: limpa os dados ao sair
     sessionStorage.removeItem('isLoggedIn')
+    sessionStorage.removeItem('usuario')
   }
-
+ 
   const toggleAccessibilityMode = () => {
     const newMode = !accessibilityMode
     setAccessibilityMode(newMode)
     localStorage.setItem('accessibilityMode', newMode.toString())
   }
-
+ 
+  // ✅ CORRIGIDO: passa userData como prop para o Home
   if (isLoggedIn) {
-    return <Home onLogout={handleLogout} />
+    return <Home onLogout={handleLogout} userData={userData} />
   }
-
+ 
   if (currentPage === 'login') {
     return (
       <div className={`auth-shell ${accessibilityMode ? 'accessibility-mode' : ''}`.trim()}>
@@ -121,7 +146,7 @@ handleLogin(data)
       </div>
     )
   }
-
+ 
   return (
     <div className={`auth-shell ${accessibilityMode ? 'accessibility-mode' : ''}`.trim()}>
       <div className="accessibility-header">
@@ -138,5 +163,5 @@ handleLogin(data)
     </div>
   )
 }
-
+ 
 export default App

@@ -213,9 +213,14 @@ function TablerIcon({ name }) {
   )
 }
 
-function Home({ onLogout }) {
+function Home({ onLogout, userData }) {
+
+  console.log("userData:", userData)
+  console.log("foto:", userData?.foto)
+
   const [activeSection, setActiveSection] = useState('dashboard')
   const [isAdmin] = useState(() => sessionStorage.getItem('isAdmin') === 'true')
+
   const [novoMedicamento, setNovoMedicamento] = useState({
     nome: '',
     dosagem: '',
@@ -223,6 +228,10 @@ function Home({ onLogout }) {
     frequencia: 'diario',
     duracao: '1-semana'
   })
+
+  // restante do código...
+
+  
   const [medicamentosTomados, setMedicamentosTomados] = useState([])
   const [showToast, setShowToast] = useState(false)
   const [toastMessage, setToastMessage] = useState('')
@@ -1209,12 +1218,13 @@ setPerfil({
     }
     
     setPerfil({
-      nome: userName || 'Usuário',
-      senha: '******',
-      email: userEmail || 'Não informado',
-      idade: userIdade || '',
-      comorbidade: userComorbidade || ''
-    })
+  nome: userName || 'Usuário',
+  senha: '******',
+  email: userEmail || 'Não informado',
+  idade: userIdade || '',
+  comorbidade: userComorbidade || '',
+  foto: sessionStorage.getItem('userPhoto') || userData?.foto || ''
+})
   }
   
   useEffect(() => {
@@ -2395,21 +2405,33 @@ setPerfil({
             </button>
           )}
         </nav>
-        <div className="sidebar-user">
-          <div className="user-avatar">
-  {(perfil.foto || sessionStorage.getItem('userPhoto')) ? (
-    <img
-      src={perfil.foto || sessionStorage.getItem('userPhoto')}
-      alt="Avatar"
-    />
-  ) : (
-    (perfil.nome || sessionStorage.getItem('userName') || 'U')
-      .charAt(0)
-      .toUpperCase()
-  )}
+<div className="sidebar-user">
+  <div className="user-avatar">
+    {(userData?.foto || perfil.foto || sessionStorage.getItem('userPhoto')) ? (
+      <img
+        src={userData?.foto || perfil.foto || sessionStorage.getItem('userPhoto')}
+        alt="Avatar"
+        referrerPolicy="no-referrer"
+      />
+    ) : (
+      (perfil.nome || sessionStorage.getItem('userName') || 'U')
+        .charAt(0)
+        .toUpperCase()
+    )}
+  </div>
+
+  <div className="user-summary">
+    <span>{perfil.nome || sessionStorage.getItem('userName') || 'Usuário'}</span>
+
+    <button onClick={onLogout}>
+      Sair
+    </button>
+  </div>
 </div>
-        </div>
-      </aside>
+</aside>
+
+
+      
       
       <main className="main-content">
         {renderContent()}
