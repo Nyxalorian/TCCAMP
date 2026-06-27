@@ -7,6 +7,7 @@ import Home from './Home'
 import './App.css'
 import './Accessibility.css'
 import API_CONFIG from './config'
+import { solicitarPermissaoNotificacao } from './notificationService'
  
 const API_BASE_URL = API_CONFIG.BASE_URL
  
@@ -82,8 +83,7 @@ handleLogin(data)
     checkRedirect()
   }, [])
  
-  const handleLogin = (data) => {
-
+const handleLogin = async (data) => {
   console.log("========== HANDLE LOGIN ==========");
   console.log("Data recebida:", data);
 
@@ -109,6 +109,31 @@ handleLogin(data)
 
   setIsLoggedIn(true);
   setUserData(usuario);
+
+  console.log("Antes da notificação");
+
+const token = await solicitarPermissaoNotificacao();
+
+console.log("Token:", token);
+
+if (token) {
+
+sessionStorage.setItem("fcmToken", token);
+
+  await fetch(`${API_BASE_URL}/api/usuarios/${usuario.id}/fcm-token`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      token: token
+    })
+  });
+
+  console.log("Token salvo no backend!");
+}
+
+console.log("Depois da notificação");
 }
  
   const handleLogout = () => {

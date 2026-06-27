@@ -6,6 +6,7 @@ import Sobre from './Sobre'
 import pharmalifeLogo from './assets/pharmalife-logo.png'
 import API_CONFIG from './config'
 
+
 const API_BASE_URL = API_CONFIG.BASE_URL
 
 const accessibilityScales = {
@@ -214,6 +215,8 @@ function TablerIcon({ name }) {
 }
 
 function Home({ onLogout, userData }) {
+
+    console.count("Home render");
 
   console.log("userData:", userData)
   console.log("foto:", userData?.foto)

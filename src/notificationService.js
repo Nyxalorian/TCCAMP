@@ -1,0 +1,31 @@
+import { getToken } from "firebase/messaging";
+import { messaging } from "./firebase";
+
+const VAPID_KEY = "BOy6JXqZ8wfaZWLukevf-kfHvfOlEjGzssuP-sDFxRtAkTkypq0lQJYKk85A3RNd2SdFM0wXti4AElI5rges4H4";
+
+export async function solicitarPermissaoNotificacao() {
+  console.log("🚀 solicitarPermissaoNotificacao foi chamada");
+
+  try {
+    const permission = await Notification.requestPermission();
+
+    console.log("Permissão recebida:", permission);
+
+    if (permission !== "granted") {
+      console.log("Permissão negada.");
+      return null;
+    }
+
+    const token = await getToken(messaging, {
+      vapidKey: VAPID_KEY
+    });
+
+    console.log("Token FCM:", token);
+
+    return token;
+
+  } catch (error) {
+    console.error("Erro ao obter token:", error);
+    return null;
+  }
+}
