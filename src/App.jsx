@@ -7,7 +7,10 @@ import Home from './Home'
 import './App.css'
 import './Accessibility.css'
 import API_CONFIG from './config'
-import { solicitarPermissaoNotificacao } from './notificationService'
+import {
+  solicitarPermissaoNotificacao,
+  escutarMensagens
+} from './notificationService'
  
 const API_BASE_URL = API_CONFIG.BASE_URL
  
@@ -36,6 +39,9 @@ function App() {
     const stored = sessionStorage.getItem('usuario')
     return stored ? JSON.parse(stored) : null
   })
+  useEffect(() => {
+    escutarMensagens();
+  }, []);
  
   useEffect(() => {
     const checkRedirect = async () => {
