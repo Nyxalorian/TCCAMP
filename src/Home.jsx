@@ -2043,7 +2043,7 @@ setPerfil({
   <span>Data de nascimento:</span>
   <span>
     {perfil.dataNascimento
-      ? new Date(perfil.dataNascimento).toLocaleDateString('pt-BR')
+      ? perfil.dataNascimento.split('-').reverse().join('/')
       : 'Não informado'}
   </span>
 </div>
