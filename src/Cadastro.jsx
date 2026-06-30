@@ -10,7 +10,7 @@ function Cadastro({ onGoToLogin }) {
     email: '',
     senha: '',
     confirmarSenha: '',
-    idade: '',
+    dataNascimento: '',
     comorbidade: ''
   })
 
@@ -43,7 +43,7 @@ function Cadastro({ onGoToLogin }) {
           nome: formData.nome,
           email: formData.email,
           senha: formData.senha,
-          idade: parseInt(formData.idade) || null,
+          dataNascimento: formData.dataNascimento || null,
           comorbidade: formData.comorbidade || null
         })
       })
@@ -72,7 +72,7 @@ function Cadastro({ onGoToLogin }) {
       email: '',
       senha: '',
       confirmarSenha: '',
-      idade: '',
+      dataNascimento: '',
       comorbidade: ''
     })
   }
@@ -111,14 +111,15 @@ function Cadastro({ onGoToLogin }) {
                 <path d="M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22A10,10 0 0,1 2,12A10,10 0 0,1 12,2M12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20A8,8 0 0,0 20,12A8,8 0 0,0 12,4M12,6A6,6 0 0,1 18,12A6,6 0 0,1 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6M12,8A4,4 0 0,0 8,12A4,4 0 0,0 12,16A4,4 0 0,0 16,12A4,4 0 0,0 12,8Z" fill="#999"/>
               </svg>
             </div>
+
+            <label htmlFor="dataNascimento">Data de nascimento</label>
+
             <input
-              type="number"
-              name="idade"
-              placeholder="Idade"
-              value={formData.idade}
+              id="dataNascimento"
+              type="date"
+              name="dataNascimento"
+              value={formData.dataNascimento}
               onChange={handleChange}
-              min="1"
-              max="120"
               required
             />
           </div>

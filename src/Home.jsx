@@ -249,7 +249,7 @@ function Home({ onLogout, userData }) {
     nome: '',
     senha: '',
     email: '',
-    idade: '',
+    dataNascimento: '',
     comorbidade: '',
     foto: ''
   })
@@ -1182,7 +1182,7 @@ setPerfil({
     nome: usuario.nome,
     senha: '******',
     email: usuario.email,
-    idade: usuario.idade || '',
+    dataNascimento: usuario.dataNascimento || '',    
     comorbidade: usuario.comorbidade || '',
     foto: usuario.foto || sessionStorage.getItem('userPhoto') || ''
 })
@@ -1199,7 +1199,7 @@ setPerfil({
     // Fallback para sessionStorage e localStorage
     const userName = sessionStorage.getItem('userName')
     let userEmail = sessionStorage.getItem('userEmail')
-    let userIdade = ''
+    let userDataNascimento = ''
     let userComorbidade = ''
     
     // Buscar dados completos do localStorage
@@ -1208,7 +1208,7 @@ setPerfil({
     
     if (usuarioEncontrado) {
       userEmail = usuarioEncontrado.email
-      userIdade = usuarioEncontrado.idade || ''
+      userDataNascimento = usuarioEncontrado.dataNascimento || ''
       userComorbidade = usuarioEncontrado.comorbidade || ''
       sessionStorage.setItem('userEmail', userEmail)
     }
@@ -1216,7 +1216,7 @@ setPerfil({
     // Também verificar se há dados salvos no perfil local
     const perfilLocal = JSON.parse(localStorage.getItem('perfilUsuario') || '{}')
     if (perfilLocal.nome === userName) {
-      userIdade = perfilLocal.idade || userIdade
+      userDataNascimento = perfilLocal.dataNascimento  || userDataNascimento
       userComorbidade = perfilLocal.comorbidade || userComorbidade
     }
     
@@ -1224,7 +1224,7 @@ setPerfil({
   nome: userName || 'Usuário',
   senha: '******',
   email: userEmail || 'Não informado',
-  idade: userIdade || '',
+  dataNascimento: userDataNascimento || '',
   comorbidade: userComorbidade || '',
   foto: sessionStorage.getItem('userPhoto') || userData?.foto || ''
 })
@@ -1760,7 +1760,7 @@ setPerfil({
           nome: perfil.nome,
           ...(perfil.senha !== '******' && perfil.senha ? { senha: perfil.senha } : {}),
           email: perfil.email,
-          idade: parseInt(perfil.idade) || usuarioAtual.idade || null,
+          dataNascimento: perfil.dataNascimento || usuarioAtual.dataNascimento || null,
           comorbidade: perfil.comorbidade
         })
       })
@@ -1773,7 +1773,7 @@ setPerfil({
         localStorage.setItem('perfilUsuario', JSON.stringify({
           nome: perfil.nome,
           email: perfil.email,
-          idade: perfil.idade,
+          dataNascimento: perfil.dataNascimento,
           comorbidade: perfil.comorbidade
         }))
         
@@ -1791,7 +1791,7 @@ setPerfil({
       localStorage.setItem('perfilUsuario', JSON.stringify({
         nome: perfil.nome,
         email: perfil.email,
-        idade: perfil.idade,
+        dataNascimento: perfil.dataNascimento,
         comorbidade: perfil.comorbidade
       }))
       
@@ -1803,7 +1803,7 @@ setPerfil({
           ...usuariosCadastrados[index],
           nome: perfil.nome,
           email: perfil.email,
-          idade: perfil.idade,
+          dataNascimento: perfil.dataNascimento,
           comorbidade: perfil.comorbidade
         }
         localStorage.setItem('usuariosCadastrados', JSON.stringify(usuariosCadastrados))
@@ -2040,9 +2040,13 @@ setPerfil({
               <span>{perfil.email || 'Não informado'}</span>
             </div>
             <div className="item">
-              <span>Idade:</span>
-              <span>{perfil.idade || 'Não informado'}</span>
-            </div>
+  <span>Data de nascimento:</span>
+  <span>
+    {perfil.dataNascimento
+      ? new Date(perfil.dataNascimento).toLocaleDateString('pt-BR')
+      : 'Não informado'}
+  </span>
+</div>
             <div className="item">
               <span>Comorbidade:</span>
               <span>{perfil.comorbidade || 'Nenhuma'}</span>
@@ -2107,12 +2111,20 @@ setPerfil({
                 value={perfil.senha === '******' ? '' : perfil.senha}
                 onChange={(e) => setPerfil({...perfil, senha: e.target.value})}
               />
-              <input
-                type="number"
-                placeholder="Idade"
-                value={perfil.idade}
-                onChange={(e) => setPerfil({...perfil, idade: e.target.value})}
-              />
+              <label htmlFor="dataNascimento">Data de nascimento</label>
+
+<input
+  id="dataNascimento"
+  name="dataNascimento"
+  type="date"
+  value={perfil.dataNascimento}
+  onChange={(e) =>
+    setPerfil({
+      ...perfil,
+      dataNascimento: e.target.value
+    })
+  }
+/>
               <input
                 type="text"
                 placeholder="Comorbidade (opcional)"
