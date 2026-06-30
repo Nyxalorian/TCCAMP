@@ -106,23 +106,24 @@ function Cadastro({ onGoToLogin }) {
           </div>
           
           <div className="input-group">
-            <div className="input-icon">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                <path d="M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22A10,10 0 0,1 2,12A10,10 0 0,1 12,2M12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20A8,8 0 0,0 20,12A8,8 0 0,0 12,4M12,6A6,6 0 0,1 18,12A6,6 0 0,1 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6M12,8A4,4 0 0,0 8,12A4,4 0 0,0 12,16A4,4 0 0,0 16,12A4,4 0 0,0 12,8Z" fill="#999"/>
-              </svg>
-            </div>
+  <div className="input-icon">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+      <path
+        d="M19 4h-1V2h-2v2H8V2H6v2H5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zm0 15H5V9h14v10z"
+        fill="#999"
+      />
+    </svg>
+  </div>
 
-            <label htmlFor="dataNascimento">Data de nascimento</label>
-
-            <input
-              id="dataNascimento"
-              type="date"
-              name="dataNascimento"
-              value={formData.dataNascimento}
-              onChange={handleChange}
-              required
-            />
-          </div>
+  <input
+    id="dataNascimento"
+    type="date"
+    name="dataNascimento"
+    value={formData.dataNascimento}
+    onChange={handleChange}
+    required
+  />
+</div>
           
           <div className="input-group">
             <div className="input-icon">
