@@ -23,6 +23,14 @@ const colorVisionModes = {
   'high-contrast': 'Alto Contraste'
 }
 
+const ignoreReasonOptions = [
+  'Médico orientou suspensão',
+  'Estou sem o medicamento',
+  'Não preciso tomar hoje',
+  'Exame ou procedimento médico',
+  'Outro motivo'
+]
+
 const widgetLabels = {
   add: '+',
   bell: 'NL',
@@ -243,7 +251,7 @@ function Home({ onLogout, userData }) {
   const [historyFilter, setHistoryFilter] = useState('week')
   const [medicamentos, setMedicamentos] = useState([])
   const [loading, setLoading] = useState(false)
-  const [estatisticas, setEstatisticas] = useState({ adesao: 0, tomados: 0, total: 0 })
+  const [, setEstatisticas] = useState({ adesao: 0, tomados: 0, total: 0 })
   const [showProfileModal, setShowProfileModal] = useState(false)
   const [perfil, setPerfil] = useState({
     nome: '',
@@ -286,6 +294,11 @@ function Home({ onLogout, userData }) {
   const [deleteAccountData, setDeleteAccountData] = useState({
     senhaAtual: ''
   })
+  const [showIgnoreModal, setShowIgnoreModal] = useState(false)
+  const [ignoreTarget, setIgnoreTarget] = useState(null)
+  const [ignoreReason, setIgnoreReason] = useState(ignoreReasonOptions[0])
+  const [ignoreOtherReason, setIgnoreOtherReason] = useState('')
+  const [savingIgnore, setSavingIgnore] = useState(false)
   const [novoLembrete, setNovoLembrete] = useState({
     titulo: '',
     descricao: '',
@@ -368,6 +381,73 @@ function Home({ onLogout, userData }) {
     return typeof horario === 'string' ? horario.slice(0, 5) : ''
   }
 
+  const isTakenStatus = (status) => ['TOMADO', 'CONFIRMADO', 'tomado'].includes(status)
+
+  const getHistoricoDate = (item) => {
+    if (item.dataConfirmacao) return new Date(item.dataConfirmacao)
+    if (item.dataHoraIgnorado) return new Date(item.dataHoraIgnorado)
+    if (item.dataHora) return new Date(item.dataHora)
+    if (item.horario) {
+      const [hour = '0', minute = '0'] = String(item.horario).split(':')
+      const date = new Date()
+      date.setHours(Number(hour), Number(minute), 0, 0)
+      return date
+    }
+    return null
+  }
+
+  const isSameDay = (left, right) => {
+    return left.getFullYear() === right.getFullYear()
+      && left.getMonth() === right.getMonth()
+      && left.getDate() === right.getDate()
+  }
+
+  const isPendingMissed = (item) => {
+    if (item.status !== 'PENDENTE' || !item.horario) return false
+    const scheduledDate = getHistoricoDate(item)
+    return scheduledDate && scheduledDate < new Date()
+  }
+
+  const getMedicationStatusToday = (med) => {
+    const today = new Date()
+    const historicoHoje = Array.isArray(historicoCompleto)
+      ? historicoCompleto
+          .filter((item) => {
+            const itemMedId = item.medicamento?.id || item.medicamentoId
+            const itemDate = getHistoricoDate(item)
+            return itemMedId === med.id && itemDate && isSameDay(itemDate, today)
+          })
+          .sort((a, b) => (getHistoricoDate(b) || new Date(0)) - (getHistoricoDate(a) || new Date(0)))
+      : []
+
+    const latest = historicoHoje[0]
+    if (latest?.status === 'IGNORADO') return 'IGNORADO'
+    if (latest && isTakenStatus(latest.status)) return 'TOMADO'
+    if (latest?.status === 'PERDIDO' || isPendingMissed(latest)) return 'PERDIDO'
+    if (latest?.status === 'PENDENTE') return 'PENDENTE'
+
+    const scheduledDate = getHistoricoDate({ horario: med.horario })
+    if (scheduledDate && scheduledDate < new Date()) return 'PERDIDO'
+
+    return 'PENDENTE'
+  }
+
+  const getDailyMedicationStats = () => {
+    const stats = { tomados: 0, pendentes: 0, perdidos: 0, ignorados: 0, total: 0, adesao: 0 }
+
+    agendaMedicamentos.forEach((med) => {
+      const status = getMedicationStatusToday(med)
+      if (status === 'TOMADO') stats.tomados += 1
+      else if (status === 'IGNORADO') stats.ignorados += 1
+      else if (status === 'PERDIDO') stats.perdidos += 1
+      else stats.pendentes += 1
+    })
+
+    stats.total = stats.tomados + stats.pendentes + stats.perdidos
+    stats.adesao = stats.total > 0 ? Math.round((stats.tomados / stats.total) * 100) : 0
+    return stats
+  }
+
   const updateAccessibilityLevel = (level) => {
     setAccessibilityLevel(level)
     localStorage.setItem('accessibilityLevel', level)
@@ -432,6 +512,110 @@ function Home({ onLogout, userData }) {
     }
   }
 
+  const abrirModalIgnorar = (target) => {
+    setIgnoreTarget(target)
+    setIgnoreReason(ignoreReasonOptions[0])
+    setIgnoreOtherReason('')
+    setShowIgnoreModal(true)
+  }
+
+  const fecharModalIgnorar = () => {
+    setShowIgnoreModal(false)
+    setIgnoreTarget(null)
+    setIgnoreReason(ignoreReasonOptions[0])
+    setIgnoreOtherReason('')
+  }
+
+  const getMotivoIgnorado = () => {
+    if (ignoreReason === 'Outro motivo') {
+      return ignoreOtherReason.trim() || 'Outro motivo'
+    }
+    return ignoreReason
+  }
+
+  const criarHistoricoPendente = async (med) => {
+    const agendaId = med.agenda?.id || med.agendaId
+    if (!agendaId) throw new Error('Agenda do medicamento não encontrada')
+
+    const response = await fetch(`${API_BASE_URL}/api/agenda/${agendaId}/medicamentos/${med.id}/historico`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        nome: med.nome,
+        dosagem: med.descricao || med.dosagem || med.agenda?.dosagem || '',
+        observacoes: med.complemento || med.agenda?.observacoes || '',
+        horario: new Date().toTimeString().slice(0, 5),
+        status: 'PENDENTE'
+      })
+    })
+
+    if (!response.ok) {
+      throw new Error(await getApiErrorMessage(response, 'Erro ao registrar histórico'))
+    }
+
+    return response.json()
+  }
+
+  const confirmarIgnorarMedicamento = async () => {
+    if (!ignoreTarget) return
+
+    const motivoIgnorado = getMotivoIgnorado()
+    setSavingIgnore(true)
+
+    try {
+      let historicoId = ignoreTarget.historicoId
+
+      if (!historicoId && ignoreTarget.med) {
+        const historicoCriado = await criarHistoricoPendente(ignoreTarget.med)
+        historicoId = historicoCriado.id
+      }
+
+      if (!historicoId) throw new Error('Histórico não encontrado para ignorar')
+
+      const response = await fetch(`${API_BASE_URL}/api/historico/${historicoId}/ignorar`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ motivoIgnorado })
+      })
+
+      if (!response.ok) {
+        throw new Error(await getApiErrorMessage(response, 'Erro ao ignorar medicamento'))
+      }
+
+      showToastMessage('Medicamento ignorado com sucesso.')
+      fecharModalIgnorar()
+      await carregarHistoricoCompleto()
+      carregarEstatisticas()
+      carregarHistoricoRecente()
+    } catch (error) {
+      const med = ignoreTarget.med
+      if (med) {
+        const registroIgnorado = {
+          id: `ignored-${Date.now()}`,
+          medicamentoId: med.id,
+          nome: med.nome,
+          dosagem: med.dosagem || med.descricao || '',
+          horario: new Date().toTimeString().slice(0, 5),
+          status: 'IGNORADO',
+          motivoIgnorado,
+          dataHoraIgnorado: new Date().toISOString(),
+          usuario: sessionStorage.getItem('userName')
+        }
+        const medicamentosIgnorados = JSON.parse(localStorage.getItem('medicamentosIgnorados') || '[]')
+        medicamentosIgnorados.push(registroIgnorado)
+        localStorage.setItem('medicamentosIgnorados', JSON.stringify(medicamentosIgnorados))
+        setHistoricoCompleto((current) => [...current, registroIgnorado])
+        showToastMessage('Medicamento ignorado com sucesso.')
+        fecharModalIgnorar()
+      } else {
+        console.error(error)
+        alert(error.message || 'Erro ao ignorar medicamento')
+      }
+    } finally {
+      setSavingIgnore(false)
+    }
+  }
+
   const getStatusBadge = (status) => {
     const badges = {
       tomado: { tone: 'confirmed', icon: 'OK', text: 'Tomado' },
@@ -440,8 +624,10 @@ function Home({ onLogout, userData }) {
       ATIVO: { tone: 'confirmed', icon: 'OK', text: 'Ativo' },
       INATIVO: { tone: 'neutral', icon: '-', text: 'Inativo' },
       PENDENTE: { tone: 'pending', icon: 'PD', text: 'Pendente' },
-      CONFIRMADO: { tone: 'confirmed', icon: 'OK', text: 'Confirmado' },
-      IGNORADO: { tone: 'missed', icon: 'EXC', text: 'Ignorado' },
+      TOMADO: { tone: 'confirmed', icon: 'OK', text: 'Tomado' },
+      CONFIRMADO: { tone: 'confirmed', icon: 'OK', text: 'Tomado' },
+      PERDIDO: { tone: 'missed', icon: '!', text: 'Perdido' },
+      IGNORADO: { tone: 'neutral', icon: 'IG', text: 'Ignorado' },
       próximo: { tone: 'info', icon: 'PM', text: 'Próximo' },
       aberta: { tone: 'confirmed', icon: 'OK', text: 'Aberta' },
       fechada: { tone: 'neutral', icon: '-', text: 'Fechada' }
@@ -454,11 +640,14 @@ function Home({ onLogout, userData }) {
     let totalMedicamentos = 0
     let tomados = 0
     let perdidos = 0
+    let ignorados = 0
+    let pendentes = 0
 
     if (Array.isArray(historicoCompleto) && historicoCompleto.length > 0) {
-      tomados = historicoCompleto.filter(h => h.status === 'CONFIRMADO').length
-      perdidos = historicoCompleto.filter(h => h.status === 'IGNORADO').length
-      const pendentes = historicoCompleto.filter(h => h.status === 'PENDENTE').length
+      tomados = historicoCompleto.filter(h => isTakenStatus(h.status)).length
+      ignorados = historicoCompleto.filter(h => h.status === 'IGNORADO').length
+      perdidos = historicoCompleto.filter(h => h.status === 'PERDIDO' || isPendingMissed(h)).length
+      pendentes = historicoCompleto.filter(h => h.status === 'PENDENTE' && !isPendingMissed(h)).length
       totalMedicamentos = tomados + perdidos + pendentes
     } else {
       const medicamentosTomadosLocal = JSON.parse(localStorage.getItem('medicamentosTomados') || '[]')
@@ -469,7 +658,7 @@ function Home({ onLogout, userData }) {
 
     const adesao = totalMedicamentos > 0 ? Math.round((tomados / totalMedicamentos) * 100) : 0
     
-    setEstatisticas({ adesao, tomados, total: totalMedicamentos, perdidos })
+    setEstatisticas({ adesao, tomados, total: totalMedicamentos, perdidos, pendentes, ignorados })
   }
   
   const renderAjuda = () => {
@@ -746,11 +935,11 @@ function Home({ onLogout, userData }) {
   
   const ultimosRemedios = Array.isArray(historicoCompleto) && historicoCompleto.length > 0
     ? historicoCompleto
-        .filter(h => h.status === 'PENDENTE' || h.status === 'CONFIRMADO')
-        .sort((a, b) => new Date(b.dataConfirmacao || b.dataHora || 0) - new Date(a.dataConfirmacao || a.dataHora || 0))
+        .filter(h => ['PENDENTE', 'CONFIRMADO', 'TOMADO', 'IGNORADO', 'PERDIDO'].includes(h.status))
+        .sort((a, b) => (getHistoricoDate(b) || new Date(0)) - (getHistoricoDate(a) || new Date(0)))
         .slice(0, 3)
         .map(h => {
-          const dataHora = new Date(h.dataConfirmacao || h.dataHora || Date.now())
+          const dataHora = getHistoricoDate(h) || new Date()
           const hoje = new Date()
           const ontem = new Date(hoje)
           ontem.setDate(hoje.getDate() - 1)
@@ -816,12 +1005,11 @@ function Home({ onLogout, userData }) {
   })) : []
 
   const renderDashboard = () => {
-    const adesao = estatisticas.adesao
+    const dailyStats = getDailyMedicationStats()
+    const adesao = dailyStats.adesao
     const agora = new Date()
     const hora = agora.getHours()
     const userName = sessionStorage.getItem('userName') || 'Usuário'
-    const medicamentosTomadosIds = new Set(medicamentosTomados)
-    const totalPendentes = Math.max(0, agendaMedicamentos.filter(med => !medicamentosTomadosIds.has(med.id)).length)
     let saudacao = 'Bom dia'
     if (hora >= 12 && hora < 18) saudacao = 'Boa tarde'
     else if (hora >= 18) saudacao = 'Boa noite'
@@ -838,15 +1026,29 @@ function Home({ onLogout, userData }) {
             <div className="stat-card stat-card--taken">
               <div className="stat-icon"><Widget type="pill" /></div>
               <div className="stat-info">
-                <span className="stat-number">{estatisticas.tomados}</span>
+                <span className="stat-number">{dailyStats.tomados}</span>
                 <span className="stat-label">Tomados hoje</span>
               </div>
             </div>
             <div className="stat-card stat-card--pending">
               <div className="stat-icon"><Widget type="time" /></div>
               <div className="stat-info">
-                <span className="stat-number">{totalPendentes}</span>
+                <span className="stat-number">{dailyStats.pendentes}</span>
                 <span className="stat-label">Pendentes</span>
+              </div>
+            </div>
+            <div className="stat-card stat-card--missed">
+              <div className="stat-icon"><Widget type="warning" /></div>
+              <div className="stat-info">
+                <span className="stat-number">{dailyStats.perdidos}</span>
+                <span className="stat-label">Perdidos</span>
+              </div>
+            </div>
+            <div className="stat-card stat-card--ignored">
+              <div className="stat-icon"><Widget type="delete" /></div>
+              <div className="stat-info">
+                <span className="stat-number">{dailyStats.ignorados}</span>
+                <span className="stat-label">Ignorados</span>
               </div>
             </div>
             <div className="stat-card stat-card--adherence">
@@ -858,6 +1060,13 @@ function Home({ onLogout, userData }) {
             </div>
           </div>
         </div>
+
+        {dailyStats.ignorados > 0 && (
+          <div className="ignored-banner" role="status">
+            <Widget type="delete" className="title-widget" />
+            Você possui {dailyStats.ignorados} medicamento{dailyStats.ignorados > 1 ? 's' : ''} ignorado{dailyStats.ignorados > 1 ? 's' : ''} hoje.
+          </div>
+        )}
 
         {/* Grid principal */}
         <div className="dashboard-grid" style={{alignItems: 'stretch'}}>
@@ -882,7 +1091,9 @@ function Home({ onLogout, userData }) {
                   </button>
                 </div>
               ) : agendaMedicamentos.slice(0, 3).map((med, index) => {
-                const jaTomado = medicamentosTomados.includes(med.id)
+                const statusHoje = getMedicationStatusToday(med)
+                const jaTomado = statusHoje === 'TOMADO' || medicamentosTomados.includes(med.id)
+                const jaIgnorado = statusHoje === 'IGNORADO'
                 return (
                   <div key={index} className="timeline-item">
                     <div className="timeline-time">{med.horario}</div>
@@ -893,11 +1104,21 @@ function Home({ onLogout, userData }) {
                       </div>
                       <button 
                         className={`btn-check ${jaTomado ? 'is-taken' : ''}`}
-                        onClick={() => !jaTomado && marcarComoTomado(med)}
+                        onClick={() => !jaTomado && !jaIgnorado && marcarComoTomado(med)}
+                        disabled={jaIgnorado}
                         aria-label={jaTomado ? `${med.nome} tomado` : `Marcar ${med.nome} como tomado`}
                       >
                         <Widget type="checklist" />
                       </button>
+                      {!jaTomado && !jaIgnorado && (
+                        <button
+                          className="btn-check btn-check--ignore"
+                          onClick={() => abrirModalIgnorar({ med })}
+                          aria-label={`Ignorar ${med.nome}`}
+                        >
+                          <Widget type="delete" />
+                        </button>
+                      )}
                     </div>
                   </div>
                 )
@@ -928,11 +1149,19 @@ function Home({ onLogout, userData }) {
               <div className="adherence-info">
                 <div className="adherence-item">
                   <span className="dot success"></span>
-                  <span>Tomados: {estatisticas.tomados}</span>
+                  <span>Tomados: {dailyStats.tomados}</span>
+                </div>
+                <div className="adherence-item">
+                  <span className="dot pending"></span>
+                  <span>Pendentes: {dailyStats.pendentes}</span>
                 </div>
                 <div className="adherence-item">
                   <span className="dot warning"></span>
-                  <span>Perdidos: 0</span>
+                  <span>Perdidos: {dailyStats.perdidos}</span>
+                </div>
+                <div className="adherence-item">
+                  <span className="dot ignored"></span>
+                  <span>Ignorados: {dailyStats.ignorados}</span>
                 </div>
               </div>
             </div>
@@ -1131,6 +1360,7 @@ function Home({ onLogout, userData }) {
       // Fallback para localStorage
       const userName = sessionStorage.getItem('userName')
       const medicamentosTomadosLocal = JSON.parse(localStorage.getItem('medicamentosTomados') || '[]')
+      const medicamentosIgnorados = JSON.parse(localStorage.getItem('medicamentosIgnorados') || '[]')
       const historicoExclusoes = JSON.parse(localStorage.getItem('historicoExclusoes') || '[]')
       const medicamentosLocal = JSON.parse(localStorage.getItem('medicamentos') || '[]')
       
@@ -1147,6 +1377,15 @@ function Home({ onLogout, userData }) {
             detalhes: `Medicamento tomado conforme programado`
           }
         })
+
+      const historicoIgnorados = medicamentosIgnorados
+        .filter(mi => mi.usuario === userName)
+        .map(mi => ({
+          ...mi,
+          nome: mi.nome || 'Medicamento',
+          dosagem: mi.dosagem || '',
+          status: 'IGNORADO'
+        }))
       
       // Histórico de exclusões
       const historicoExcluidos = historicoExclusoes
@@ -1160,7 +1399,11 @@ function Home({ onLogout, userData }) {
         }))
       
       // Combinar e ordenar todos os históricos
-      const historicoLocal = [...(Array.isArray(historicoTomados) ? historicoTomados : []), ...(Array.isArray(historicoExcluidos) ? historicoExcluidos : [])]
+      const historicoLocal = [
+        ...(Array.isArray(historicoTomados) ? historicoTomados : []),
+        ...(Array.isArray(historicoIgnorados) ? historicoIgnorados : []),
+        ...(Array.isArray(historicoExcluidos) ? historicoExcluidos : [])
+      ]
         .sort((a, b) => new Date(b.dataHora) - new Date(a.dataHora))
       
       setHistoricoCompleto(Array.isArray(historicoLocal) ? historicoLocal : [])
@@ -1429,10 +1672,12 @@ setPerfil({
               </button>
             </div>
           ) : medicamentosFiltrados.map((med, index) => {
-            const badge = getStatusBadge(med.status)
-            const jaTomado = medicamentosTomados.includes(med.id)
+            const statusHoje = getMedicationStatusToday(med)
+            const badge = getStatusBadge(statusHoje)
+            const jaTomado = statusHoje === 'TOMADO' || medicamentosTomados.includes(med.id)
+            const jaIgnorado = statusHoje === 'IGNORADO'
             return (
-              <div key={index} className={`med-row ${jaTomado ? 'med-row--taken' : ''}`}>
+              <div key={index} className={`med-row med-row--${statusHoje.toLowerCase()} ${jaTomado ? 'med-row--taken' : ''}`}>
                 <div className="med-row__info">
                   <span className="med-row__name">{med.nome}</span>
                   <span className="med-row__meta">{med.dosagem} · {med.horario} · {med.frequencia}</span>
@@ -1442,8 +1687,11 @@ setPerfil({
                   {badge.text}
                 </span>
                 <div className="med-row__actions">
-                  {!jaTomado && med.status !== 'tomado' && (
+                  {!jaTomado && !jaIgnorado && med.status !== 'tomado' && (
                     <button className="btn-take" onClick={() => marcarComoTomado(med)} title="Marcar como tomado"><Widget type="checklist" /> Tomado</button>
+                  )}
+                  {!jaTomado && !jaIgnorado && (
+                    <button className="btn-ignore" onClick={() => abrirModalIgnorar({ med })} title="Ignorar medicamento"><Widget type="delete" /> Ignorar</button>
                   )}
                   <button className="btn-edit" onClick={() => handleEditMedicamento(med)} title="Editar"><Widget type="edit" /></button>
                   <button className="btn-delete-small" onClick={() => handleDeleteMedicamento(med.id)} title="Excluir"><Widget type="delete" /></button>
@@ -1664,16 +1912,10 @@ setPerfil({
     } catch { showToastMessage('Erro ao confirmar') }
   }
 
-  const ignorarHistorico = async (id) => {
-    try {
-      const resp = await fetch(`${API_BASE_URL}/api/historico/${id}/ignorar`, { method: 'PATCH' })
-      if (resp.ok) { showToastMessage('Registro ignorado.'); carregarHistoricoCompleto() }
-    } catch { showToastMessage('Erro ao ignorar') }
-  }
-
   const renderHistorico = () => {
     const getStatusIcon = (status) => {
       switch(status) {
+        case 'TOMADO': return <Widget type="checklist" />
         case 'CONFIRMADO': return <Widget type="checklist" />
         case 'IGNORADO': return <Widget type="delete" />
         case 'PERDIDO': return <Widget type="warning" />
@@ -1684,6 +1926,7 @@ setPerfil({
 
     const getHistoricoDate = (item) => {
       if (item.dataConfirmacao) return new Date(item.dataConfirmacao)
+      if (item.dataHoraIgnorado) return new Date(item.dataHoraIgnorado)
       if (item.dataHora) return new Date(item.dataHora)
       if (item.horario) {
         const [hour = '0', minute = '0'] = String(item.horario).split(':')
@@ -1768,6 +2011,7 @@ setPerfil({
             filteredHistorico.map((item, index) => {
               const dataConfirmacao = getHistoricoDate(item)
               const statusVisual = item.statusVisual || item.status
+              const statusLabel = isTakenStatus(statusVisual) ? 'TOMADO' : statusVisual
               const hoje = new Date()
               const ontem = new Date(hoje); ontem.setDate(hoje.getDate() - 1)
               let dataTexto = dataConfirmacao ? dataConfirmacao.toLocaleDateString('pt-BR') : '—'
@@ -1780,12 +2024,12 @@ setPerfil({
               return (
                 <div key={index} className="card historico-item">
                   <div className="historico-header">
-                    <div className={`historico-icon historico-icon--${(statusVisual || 'default').toLowerCase()}`}>
-                      {getStatusIcon(statusVisual)}
+                    <div className={`historico-icon historico-icon--${(statusLabel || 'default').toLowerCase()}`}>
+                      {getStatusIcon(statusLabel)}
                     </div>
                     <div className="historico-info">
                       <h4>{item.nome} {item.dosagem}</h4>
-                      <span className="historico-acao">{statusVisual}{item.duracao ? ` · ${item.duracao}` : ' · 1 semana'}</span>
+                      <span className="historico-acao">{statusLabel}{item.duracao ? ` · ${item.duracao}` : ' · 1 semana'}</span>
                     </div>
                     <div className="historico-time">
                       <span>{dataTexto}</span>
@@ -1795,10 +2039,11 @@ setPerfil({
                   {item.status === 'PENDENTE' && !item.virtualMissed && (
                     <div className="pending-actions">
                       <button onClick={() => confirmarHistorico(item.id)} className="btn-status btn-status--confirm"><Widget type="checklist" /> Confirmar</button>
-                      <button onClick={() => ignorarHistorico(item.id)} className="btn-status btn-status--ignore"><Widget type="delete" /> Ignorar</button>
+                      <button onClick={() => abrirModalIgnorar({ historicoId: item.id, med: item })} className="btn-status btn-status--ignore"><Widget type="delete" /> Ignorar</button>
                     </div>
                   )}
                   {item.observacoes && !isDurationOnly && <div className="historico-detalhes"><p>{item.observacoes}</p></div>}
+                  {item.motivoIgnorado && <div className="historico-detalhes"><p>Motivo: {item.motivoIgnorado}</p></div>}
                 </div>
               )
             })
@@ -2601,6 +2846,51 @@ setPerfil({
                   <button type="submit" className="btn-save">Atualizar</button>
                 </div>
               </form>
+            </div>
+          </div>
+        )}
+
+        {showIgnoreModal && (
+          <div className="modal-overlay" onClick={fecharModalIgnorar}>
+            <div className="modal ignore-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="ignore-title">
+              <h3 id="ignore-title"><Widget type="delete" className="title-widget" />Por que você deseja ignorar este medicamento?</h3>
+              <p className="ignore-modal__subtitle">
+                Medicamentos ignorados não contam como esquecidos e não reduzem sua taxa de adesão.
+              </p>
+
+              <div className="ignore-reasons" role="radiogroup" aria-label="Motivo para ignorar medicamento">
+                {ignoreReasonOptions.map((reason) => (
+                  <label key={reason} className={`ignore-reason ${ignoreReason === reason ? 'selected' : ''}`}>
+                    <input
+                      type="radio"
+                      name="ignoreReason"
+                      value={reason}
+                      checked={ignoreReason === reason}
+                      onChange={(e) => setIgnoreReason(e.target.value)}
+                    />
+                    <span>{reason}</span>
+                  </label>
+                ))}
+              </div>
+
+              {ignoreReason === 'Outro motivo' && (
+                <label className="profile-form ignore-other-field">
+                  <span>Descreva o motivo (opcional)</span>
+                  <input
+                    type="text"
+                    placeholder="Ex: tive uma reação ou orientação específica"
+                    value={ignoreOtherReason}
+                    onChange={(e) => setIgnoreOtherReason(e.target.value)}
+                  />
+                </label>
+              )}
+
+              <div className="modal-buttons">
+                <button type="button" className="btn-cancel" onClick={fecharModalIgnorar} disabled={savingIgnore}>Cancelar</button>
+                <button type="button" className="btn-save" onClick={confirmarIgnorarMedicamento} disabled={savingIgnore}>
+                  {savingIgnore ? 'Salvando...' : 'Confirmar'}
+                </button>
+              </div>
             </div>
           </div>
         )}

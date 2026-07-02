@@ -466,7 +466,15 @@ button .ui-widget {
 }
 
 .dot.warning {
+  background: #ef4444;
+}
+
+.dot.pending {
   background: #f59e0b;
+}
+
+.dot.ignored {
+  background: #3b82f6;
 }
 
 /* Hist��rico recente */
@@ -3037,7 +3045,7 @@ button .ui-widget {
 .dashboard-header { display: block; margin-bottom: 20px; padding: 28px; background: var(--pharma-primary); border-radius: 12px; box-shadow: var(--pharma-shadow); }
 .welcome-title { font-size: 28px; line-height: 1.2; }
 .welcome-subtitle { color: rgba(255,255,255,0.78); font-size: 15px; }
-.quick-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-top: 20px; }
+.quick-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px; margin-top: 20px; }
 .stat-card { position: relative; min-width: 0; padding: 18px; background: #fff; border: 1px solid var(--pharma-border); border-radius: 12px; box-shadow: var(--pharma-shadow); text-align: left; backdrop-filter: none; }
 .stat-icon { position: absolute; top: 14px; right: 14px; margin: 0; }
 .stat-number { color: var(--pharma-primary); font-size: 30px; line-height: 1; }
@@ -3674,6 +3682,182 @@ button .ui-widget { color: currentColor; }
   color: #065F46;
 }
 
+.stat-card--missed .stat-icon {
+  background: #FEE2E2;
+  color: #DC2626;
+}
+
+.stat-card--ignored .stat-icon {
+  background: #DBEAFE;
+  color: #1D4ED8;
+}
+
+.ignored-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 16px 0 0;
+  padding: 12px 16px;
+  border: 1px solid rgba(29, 78, 216, 0.18);
+  border-radius: 12px;
+  background: #EFF6FF;
+  color: #1E3A8A;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.status-badge--confirmed {
+  background: #D1FAE5 !important;
+  color: #065F46 !important;
+}
+
+.status-badge--pending {
+  background: #FEF3C7 !important;
+  color: #92400E !important;
+}
+
+.status-badge--missed {
+  background: #FEE2E2 !important;
+  color: #991B1B !important;
+}
+
+.status-badge--neutral {
+  background: #DBEAFE !important;
+  color: #1E3A8A !important;
+}
+
+.med-row--tomado,
+.med-row--confirmado {
+  border-left-color: #10B981;
+}
+
+.med-row--pendente {
+  border-left-color: #F59E0B;
+}
+
+.med-row--perdido {
+  border-left-color: #EF4444;
+}
+
+.med-row--ignorado {
+  border-left-color: #3B82F6;
+}
+
+.btn-ignore {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 0.4rem 0.75rem;
+  border: 1px solid rgba(59, 130, 246, 0.35);
+  border-radius: 8px;
+  background: #EFF6FF;
+  color: #1D4ED8;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 700;
+  transition: background 0.18s ease, transform 0.18s ease;
+}
+
+.btn-ignore:hover {
+  background: #DBEAFE;
+  transform: translateY(-1px);
+}
+
+.btn-ignore .ui-widget {
+  margin-right: 0;
+}
+
+.btn-check--ignore {
+  border-color: rgba(59, 130, 246, 0.35);
+  background: #EFF6FF;
+  color: #1D4ED8;
+}
+
+.btn-check--ignore:hover {
+  border-color: #2563EB;
+  background: #DBEAFE;
+  color: #1D4ED8;
+}
+
+.historico-icon--tomado {
+  border-color: rgba(16, 185, 129, 0.38);
+  background: #D1FAE5;
+  color: #047857;
+}
+
+.historico-icon--ignorado {
+  border-color: rgba(59, 130, 246, 0.34);
+  background: #DBEAFE;
+  color: #1D4ED8;
+}
+
+.ignore-modal {
+  max-width: 560px;
+}
+
+.ignore-modal__subtitle {
+  margin: -4px 0 18px;
+  color: #64748B;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.ignore-reasons {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.ignore-reason {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 46px;
+  padding: 0 14px;
+  border: 1px solid var(--pharma-border);
+  border-radius: 10px;
+  background: #FFFFFF;
+  color: var(--pharma-text);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.ignore-reason.selected {
+  border-color: #1A3A6B;
+  background: #EFF6FF;
+  color: #1A3A6B;
+}
+
+.ignore-reason input {
+  width: 16px;
+  height: 16px;
+  accent-color: #1A3A6B;
+}
+
+.ignore-other-field {
+  margin-bottom: 16px;
+}
+
+.home-container.dark-mode .ignored-banner,
+.home-container.dark-mode .ignore-reason {
+  background: #0B1220;
+  border-color: #334155;
+  color: #E5E7EB;
+}
+
+.home-container.dark-mode .ignore-reason.selected {
+  background: #162033;
+  border-color: #60A5FA;
+  color: #BFDBFE;
+}
+
+.home-container.dark-mode .ignore-modal__subtitle {
+  color: #CBD5E1;
+}
+
 .help-topic-grid {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
@@ -4014,6 +4198,31 @@ button .ui-widget { color: currentColor; }
   background: transparent;
   color: currentColor;
   box-shadow: none;
+}
+
+.home-container.dark-mode .historico-icon--tomado,
+.home-container.dark-mode .historico-icon--confirmado {
+  background: rgba(16, 185, 129, 0.18);
+  border-color: rgba(52, 211, 153, 0.45);
+  color: #6EE7B7;
+}
+
+.home-container.dark-mode .historico-icon--pendente {
+  background: rgba(245, 158, 11, 0.18);
+  border-color: rgba(251, 191, 36, 0.45);
+  color: #FBBF24;
+}
+
+.home-container.dark-mode .historico-icon--perdido {
+  background: rgba(239, 68, 68, 0.18);
+  border-color: rgba(248, 113, 113, 0.45);
+  color: #FCA5A5;
+}
+
+.home-container.dark-mode .historico-icon--ignorado {
+  background: rgba(59, 130, 246, 0.18);
+  border-color: rgba(96, 165, 250, 0.45);
+  color: #93C5FD;
 }
 
 .home-container.dark-mode .btn-add-modern.medicamento {
