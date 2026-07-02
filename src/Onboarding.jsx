@@ -9,9 +9,54 @@ const comorbidityOptions = [
   'Diabetes',
   'Hipertensao',
   'Asma',
+  'Bronquite',
+  'Rinite alergica',
+  'Sinusite cronica',
+  'DPOC',
+  'Hipotireoidismo',
+  'Hipertireoidismo',
+  'Colesterol alto',
+  'Triglicerides altos',
+  'Doenca cardiaca',
+  'Arritmia',
+  'Insuficiencia cardiaca',
+  'Doenca renal cronica',
+  'Gastrite',
+  'Refluxo gastroesofagico',
+  'Doenca hepatica',
+  'Artrite',
+  'Artrose',
+  'Osteoporose',
+  'Fibromialgia',
+  'Enxaqueca',
+  'Epilepsia',
+  'AVC previo',
+  'Ansiedade',
+  'Depressao',
+  'TDAH',
+  'Autismo',
+  'Anemia',
+  'Obesidade',
+  'Apneia do sono',
+  'Glaucoma',
+  'Catarata',
+  'Cancer em tratamento',
+  'Doenca autoimune',
+  'Lupus',
+  'Psoriase',
+  'HIV',
+  'Alergias medicamentosas',
   'Outra',
   NO_COMORBIDITIES
 ]
+
+const parseComorbidities = (value) => {
+  if (!value) return []
+  return value
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean)
+}
 
 function StepIcon({ type }) {
   const icons = {
@@ -61,10 +106,12 @@ function StepIcon({ type }) {
 function Onboarding({ userData, onComplete, onLogout }) {
   const [step, setStep] = useState(0)
   const [saving, setSaving] = useState(false)
+  const initialComorbidities = parseComorbidities(userData?.comorbidade || '')
   const [profile, setProfile] = useState({
     nome: userData?.nome || '',
     dataNascimento: userData?.dataNascimento === '1900-01-01' ? '' : userData?.dataNascimento || '',
-    comorbidade: userData?.comorbidade || ''
+    comorbidades: initialComorbidities,
+    outraComorbidade: initialComorbidities.find((item) => !comorbidityOptions.includes(item)) || ''
   })
 
   const totalQuestions = 3
@@ -83,6 +130,39 @@ function Onboarding({ userData, onComplete, onLogout }) {
       ...current,
       [field]: value
     }))
+  }
+
+  const toggleComorbidity = (option) => {
+    setProfile((current) => {
+      if (option === NO_COMORBIDITIES) {
+        return {
+          ...current,
+          comorbidades: current.comorbidades.includes(NO_COMORBIDITIES) ? [] : [NO_COMORBIDITIES],
+          outraComorbidade: ''
+        }
+      }
+
+      const withoutNone = current.comorbidades.filter((item) => item !== NO_COMORBIDITIES)
+      const selected = withoutNone.includes(option)
+        ? withoutNone.filter((item) => item !== option)
+        : [...withoutNone, option]
+
+      return {
+        ...current,
+        comorbidades: selected
+      }
+    })
+  }
+
+  const getComorbidityValue = () => {
+    const selected = profile.comorbidades.filter((item) => item !== 'Outra')
+    const custom = profile.outraComorbidade.trim()
+
+    if (profile.comorbidades.includes(NO_COMORBIDITIES)) {
+      return NO_COMORBIDITIES
+    }
+
+    return [...selected, custom].filter(Boolean).join(', ') || NO_COMORBIDITIES
   }
 
   const goNext = () => {
@@ -104,7 +184,7 @@ function Onboarding({ userData, onComplete, onLogout }) {
   }
 
   const finishOnboarding = async () => {
-    const comorbidade = profile.comorbidade.trim() || NO_COMORBIDITIES
+    const comorbidade = getComorbidityValue()
     setSaving(true)
 
     try {
@@ -139,7 +219,7 @@ function Onboarding({ userData, onComplete, onLogout }) {
     onComplete({
       ...userData,
       ...profile,
-      comorbidade: profile.comorbidade.trim() || NO_COMORBIDITIES
+      comorbidade: getComorbidityValue()
     })
   }
 
@@ -154,7 +234,9 @@ function Onboarding({ userData, onComplete, onLogout }) {
       <main className="onboarding-card" aria-live="polite">
         <header className="onboarding-topbar">
           <div className="onboarding-brand">
-            <span className="onboarding-logo">+</span>
+            <span className="onboarding-logo">
+              <img src="/favicon.png" alt="" />
+            </span>
             <div>
               <strong>PharmaLife</strong>
               <span>Configuracao inicial</span>
@@ -227,13 +309,14 @@ function Onboarding({ userData, onComplete, onLogout }) {
               <StepIcon type="heart" />
               <p className="onboarding-kicker">Etapa 3 de 3</p>
               <h1>Voce possui alguma comorbidade?</h1>
+              <p className="onboarding-hint">Selecione quantas opcoes quiser. Essa etapa e opcional.</p>
               <div className="onboarding-options">
                 {comorbidityOptions.map((option) => (
                   <button
                     type="button"
                     key={option}
-                    className={profile.comorbidade === option ? 'selected' : ''}
-                    onClick={() => handleChange('comorbidade', option)}
+                    className={profile.comorbidades.includes(option) ? 'selected' : ''}
+                    onClick={() => toggleComorbidity(option)}
                   >
                     {option}
                   </button>
@@ -243,8 +326,9 @@ function Onboarding({ userData, onComplete, onLogout }) {
                 <span>Ou descreva outra opcao</span>
                 <input
                   type="text"
-                  value={comorbidityOptions.includes(profile.comorbidade) ? '' : profile.comorbidade}
-                  onChange={(e) => handleChange('comorbidade', e.target.value)}
+                  value={profile.outraComorbidade}
+                  onChange={(e) => handleChange('outraComorbidade', e.target.value)}
+                  disabled={profile.comorbidades.includes(NO_COMORBIDITIES)}
                   placeholder="Digite aqui, se preferir"
                 />
               </label>
