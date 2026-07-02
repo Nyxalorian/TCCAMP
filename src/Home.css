@@ -3109,6 +3109,12 @@ button .ui-widget { color: currentColor; }
   color: #dc2626;
 }
 
+.historico-icon--perdido {
+  border-color: rgba(239, 68, 68, 0.34);
+  background: #fee2e2;
+  color: #dc2626;
+}
+
 .historico-icon--pendente {
   border-color: rgba(245, 158, 11, 0.36);
   background: #fef3c7;
