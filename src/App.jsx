@@ -4,6 +4,7 @@ import { auth } from './firebase'
 import Login from './Login'
 import Cadastro from './Cadastro'
 import Home from './Home'
+import Onboarding from './Onboarding'
 import './App.css'
 import './Accessibility.css'
 import API_CONFIG from './config'
@@ -11,9 +12,39 @@ import {
   solicitarPermissaoNotificacao,
   escutarMensagens
 } from './notificationService'
- 
+
 const API_BASE_URL = API_CONFIG.BASE_URL
- 
+const ONBOARDING_PENDING_DATE = '1900-01-01'
+
+function isProfileComplete(usuario) {
+  return Boolean(
+    usuario?.nome &&
+    usuario?.dataNascimento &&
+    usuario.dataNascimento !== ONBOARDING_PENDING_DATE &&
+    usuario?.comorbidade
+  )
+}
+
+function normalizeUser(data) {
+  return {
+    nome: data?.nome || '',
+    email: data?.email || '',
+    id: data?.id || '',
+    foto: data?.foto || '',
+    dataNascimento: data?.dataNascimento || '',
+    comorbidade: data?.comorbidade || '',
+  }
+}
+
+function saveUserSession(usuario) {
+  sessionStorage.setItem('isLoggedIn', 'true')
+  sessionStorage.setItem('usuario', JSON.stringify(usuario))
+  sessionStorage.setItem('userId', String(usuario.id))
+  sessionStorage.setItem('userName', usuario.nome)
+  sessionStorage.setItem('userEmail', usuario.email)
+  sessionStorage.setItem('userPhoto', usuario.foto || '')
+}
+
 function Widget({ className = '' }) {
   return (
     <span className={`ui-widget ${className}`.trim()} aria-hidden="true">
@@ -24,8 +55,13 @@ function Widget({ className = '' }) {
     </span>
   )
 }
- 
+
 function App() {
+  const storedUser = () => {
+    const stored = sessionStorage.getItem('usuario')
+    return stored ? JSON.parse(stored) : null
+  }
+
   const [currentPage, setCurrentPage] = useState('cadastro')
   const [isLoggedIn, setIsLoggedIn] = useState(() => {
     return sessionStorage.getItem('isLoggedIn') === 'true'
@@ -33,133 +69,110 @@ function App() {
   const [accessibilityMode, setAccessibilityMode] = useState(() => {
     return localStorage.getItem('accessibilityMode') === 'true'
   })
- 
-  // ✅ NOVO: estado para guardar os dados do usuário (inclusive a foto)
-  const [userData, setUserData] = useState(() => {
-    const stored = sessionStorage.getItem('usuario')
-    return stored ? JSON.parse(stored) : null
+  const [userData, setUserData] = useState(() => storedUser())
+  const [needsOnboarding, setNeedsOnboarding] = useState(() => {
+    const usuario = storedUser()
+    return usuario ? !isProfileComplete(usuario) : false
   })
+
   useEffect(() => {
-    escutarMensagens();
-  }, []);
- 
+    escutarMensagens()
+  }, [])
+
   useEffect(() => {
     const checkRedirect = async () => {
-      console.log('🔍 Verificando redirect...')
       try {
         const result = await getRedirectResult(auth)
-        console.log('📦 Resultado do redirect:', result)
-        if (!result) {
-          console.log('❌ Nenhum resultado de redirect encontrado')
-          return
-        }
- 
-        console.log('✅ Usuário Google:', result.user.email)
+        if (!result) return
+
         const token = await result.user.getIdToken()
-        console.log('🎫 Token gerado:', token.substring(0, 20) + '...')
- 
         const response = await fetch(`${API_BASE_URL}/api/usuarios/google-login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ token })
         })
- 
-        console.log('📡 Resposta do backend:', response.status)
- 
+
         if (!response.ok) throw new Error('Erro ao autenticar com Google')
- 
-        const texto = await response.text()
-console.log("RESPOSTA DO BACKEND:", texto)
 
-const data = JSON.parse(texto)
-
-console.log("DATA:", data)
-
-data.foto = result.user.photoURL || ''
-
-console.log("📷 Foto recebida:", data.foto)
-
-handleLogin(data)
+        const data = await response.json()
+        data.foto = result.user.photoURL || data.foto || ''
+        handleLogin(data)
       } catch (error) {
-        console.error('💥 Erro:', error)
+        console.error(error)
         alert(error.message || 'Erro no login Google')
       }
     }
- 
+
     checkRedirect()
   }, [])
- 
-const handleLogin = async (data) => {
-  console.log("========== HANDLE LOGIN ==========");
-  console.log("Data recebida:", data);
 
-  const usuario = {
-    nome: data.nome || '',
-    email: data.email || '',
-    id: data.id || '',
-    foto: data.foto || '',
-  };
+  const handleLogin = async (data) => {
+    const usuario = normalizeUser(data)
 
-  console.log("Objeto usuário:", usuario);
+    saveUserSession(usuario)
+    setIsLoggedIn(true)
+    setUserData(usuario)
+    setNeedsOnboarding(!isProfileComplete(usuario))
 
-  sessionStorage.setItem('isLoggedIn', 'true');
-  sessionStorage.setItem('usuario', JSON.stringify(usuario));
-  sessionStorage.setItem('userId', String(usuario.id));
-  sessionStorage.setItem('userName', usuario.nome);
-  sessionStorage.setItem('userEmail', usuario.email);
-  sessionStorage.setItem('userPhoto', usuario.foto || '');
+    const token = await solicitarPermissaoNotificacao()
 
-  console.log("Depois de salvar:");
-  console.log("usuario =", sessionStorage.getItem("usuario"));
-  console.log("userPhoto =", sessionStorage.getItem("userPhoto"));
+    if (token) {
+      sessionStorage.setItem('fcmToken', token)
 
-  setIsLoggedIn(true);
-  setUserData(usuario);
+      await fetch(`${API_BASE_URL}/api/usuarios/${usuario.id}/fcm-token`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          token: token
+        })
+      })
+    }
+  }
 
-  console.log("Antes da notificação");
+  const handleCadastroSuccess = (data) => {
+    const usuario = normalizeUser(data)
 
-const token = await solicitarPermissaoNotificacao();
+    saveUserSession(usuario)
+    setUserData(usuario)
+    setIsLoggedIn(true)
+    setNeedsOnboarding(true)
+  }
 
-console.log("Token:", token);
-
-if (token) {
-
-sessionStorage.setItem("fcmToken", token);
-
-  await fetch(`${API_BASE_URL}/api/usuarios/${usuario.id}/fcm-token`, {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      token: token
+  const handleOnboardingComplete = (data) => {
+    const usuario = normalizeUser({
+      ...userData,
+      ...data
     })
-  });
 
-  console.log("Token salvo no backend!");
-}
+    saveUserSession(usuario)
+    setUserData(usuario)
+    setNeedsOnboarding(false)
+  }
 
-console.log("Depois da notificação");
-}
- 
   const handleLogout = () => {
     setIsLoggedIn(false)
-    setUserData(null) // ✅ NOVO: limpa os dados ao sair
+    setUserData(null)
+    setNeedsOnboarding(false)
     sessionStorage.removeItem('isLoggedIn')
     sessionStorage.removeItem('usuario')
   }
- 
+
   const toggleAccessibilityMode = () => {
     const newMode = !accessibilityMode
     setAccessibilityMode(newMode)
     localStorage.setItem('accessibilityMode', newMode.toString())
   }
- 
-  // ✅ CORRIGIDO: passa userData como prop para o Home
+
   if (isLoggedIn) {
+    if (needsOnboarding) {
+      return <Onboarding userData={userData} onComplete={handleOnboardingComplete} onLogout={handleLogout} />
+    }
+
     return <Home onLogout={handleLogout} userData={userData} />
   }
- 
+
   if (currentPage === 'login') {
     return (
       <div className={`auth-shell ${accessibilityMode ? 'accessibility-mode' : ''}`.trim()}>
@@ -177,7 +190,7 @@ console.log("Depois da notificação");
       </div>
     )
   }
- 
+
   return (
     <div className={`auth-shell ${accessibilityMode ? 'accessibility-mode' : ''}`.trim()}>
       <div className="accessibility-header">
@@ -190,9 +203,9 @@ console.log("Depois da notificação");
           {accessibilityMode ? 'Modo Normal' : 'Letras Grandes'}
         </button>
       </div>
-      <Cadastro onGoToLogin={() => setCurrentPage('login')} />
+      <Cadastro onGoToLogin={() => setCurrentPage('login')} onCadastroSuccess={handleCadastroSuccess} />
     </div>
   )
 }
- 
+
 export default App
