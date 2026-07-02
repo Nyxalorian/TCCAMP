@@ -4249,6 +4249,392 @@ button .ui-widget { color: currentColor; }
   color: #f8fafc;
 }
 
+/* Focused Home experience */
+.dashboard-container {
+  display: grid;
+  gap: 18px;
+  max-width: 1040px;
+  padding: 0;
+}
+
+.home-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 0.48fr);
+  gap: 18px;
+  align-items: stretch;
+  padding: 24px;
+  border: 1px solid var(--pharma-border);
+  border-radius: 16px;
+  background: #FFFFFF;
+  box-shadow: var(--pharma-shadow);
+}
+
+.home-hero--success {
+  border-left: 6px solid #10B981;
+}
+
+.home-hero--attention {
+  border-left: 6px solid #F59E0B;
+}
+
+.home-hero--danger {
+  border-left: 6px solid #EF4444;
+}
+
+.home-hero__status {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  min-width: 0;
+}
+
+.home-hero__status > .home-hero__icon.ui-widget {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  min-width: 48px;
+  height: 48px;
+  padding: 0;
+  border-radius: 14px;
+  margin: 2px 0 0;
+  line-height: 0;
+}
+
+.home-hero__status > .home-hero__icon.ui-widget svg,
+.home-hero__status > .home-hero__icon.ui-widget img {
+  display: block;
+  width: 24px;
+  height: 24px;
+  margin: 0;
+}
+
+.home-hero--success .home-hero__icon {
+  background: #D1FAE5;
+  color: #047857;
+}
+
+.home-hero--attention .home-hero__icon {
+  background: #FEF3C7;
+  color: #B45309;
+}
+
+.home-hero--danger .home-hero__icon {
+  background: #FEE2E2;
+  color: #DC2626;
+}
+
+.home-hero__status p,
+.home-section__header p {
+  margin: 0 0 6px;
+  color: var(--pharma-muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.home-hero__status h2 {
+  margin: 0;
+  color: var(--pharma-text);
+  font-size: 28px;
+  line-height: 1.15;
+  letter-spacing: 0;
+}
+
+.home-hero__status span {
+  display: block;
+  margin-top: 8px;
+  color: var(--pharma-muted);
+  font-size: 15px;
+}
+
+.home-hero__next {
+  display: grid;
+  align-content: center;
+  gap: 8px;
+  padding: 18px;
+  border-radius: 14px;
+  background: #F8FAFC;
+  border: 1px solid rgba(26, 58, 107, 0.1);
+}
+
+.home-hero__next span {
+  color: var(--pharma-muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.home-hero__next strong {
+  color: var(--pharma-primary);
+  font-size: 18px;
+  line-height: 1.35;
+}
+
+.home-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.home-summary__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 74px;
+  padding: 16px 18px;
+  border: 1px solid var(--pharma-border);
+  border-radius: 14px;
+  background: #FFFFFF;
+  box-shadow: var(--pharma-shadow);
+}
+
+.home-summary__item span {
+  color: var(--pharma-muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.home-summary__item strong {
+  color: var(--pharma-primary);
+  font-size: 30px;
+  line-height: 1;
+}
+
+.home-section {
+  padding: 20px;
+  border: 1px solid var(--pharma-border);
+  border-radius: 16px;
+  background: #FFFFFF;
+  box-shadow: var(--pharma-shadow);
+}
+
+.home-section__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.home-section__header h3 {
+  margin: 0;
+  color: var(--pharma-text);
+  font-size: 20px;
+  line-height: 1.2;
+}
+
+.home-med-list {
+  display: grid;
+  gap: 10px;
+}
+
+.home-med-card {
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr) auto auto;
+  gap: 14px;
+  align-items: center;
+  min-height: 72px;
+  padding: 14px;
+  border: 1px solid var(--pharma-border);
+  border-left-width: 5px;
+  border-radius: 14px;
+  background: #FFFFFF;
+}
+
+.home-med-card--pendente {
+  border-left-color: #F59E0B;
+}
+
+.home-med-card--perdido {
+  border-left-color: #EF4444;
+}
+
+.home-med-card--tomado,
+.home-med-card--confirmado {
+  border-left-color: #10B981;
+}
+
+.home-med-card--ignorado {
+  border-left-color: #3B82F6;
+}
+
+.home-med-card__time {
+  display: grid;
+  place-items: center;
+  min-height: 44px;
+  border-radius: 10px;
+  background: #EFF6FF;
+  color: var(--pharma-primary);
+  font-size: 17px;
+  font-weight: 900;
+}
+
+.home-med-card__body {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.home-med-card__body strong {
+  overflow: hidden;
+  color: var(--pharma-text);
+  font-size: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.home-med-card__body span {
+  overflow: hidden;
+  color: var(--pharma-muted);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.home-med-card__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.home-med-card__actions .btn-take,
+.home-med-card__actions .btn-ignore {
+  min-width: 0;
+  min-height: 38px;
+  padding: 0 12px;
+  border-radius: 9px;
+  font-size: 13px;
+}
+
+.home-empty-state {
+  display: grid;
+  place-items: center;
+  gap: 12px;
+  min-height: 120px;
+  color: var(--pharma-muted);
+  text-align: center;
+}
+
+.home-quick-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.home-quick-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 0 14px;
+  border: 1px solid var(--pharma-border);
+  border-radius: 10px;
+  background: #FFFFFF;
+  color: var(--pharma-primary);
+  cursor: pointer;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 800;
+  box-shadow: var(--pharma-shadow);
+}
+
+.home-quick-actions button:hover {
+  border-color: var(--pharma-primary);
+  background: #F8FAFC;
+}
+
+.home-quick-actions .ui-widget {
+  margin: 0;
+}
+
+.home-container.dark-mode .home-hero,
+.home-container.dark-mode .home-summary__item,
+.home-container.dark-mode .home-section,
+.home-container.dark-mode .home-med-card,
+.home-container.dark-mode .home-quick-actions button {
+  background: #111827;
+  border-color: #263449;
+  color: #F8FAFC;
+}
+
+.home-container.dark-mode .home-hero__next,
+.home-container.dark-mode .home-med-card__time {
+  background: #0B1220;
+  border-color: #334155;
+}
+
+.home-container.dark-mode .home-hero__status h2,
+.home-container.dark-mode .home-section__header h3,
+.home-container.dark-mode .home-med-card__body strong {
+  color: #F8FAFC;
+}
+
+@media (max-width: 900px) {
+  .home-hero,
+  .home-med-card {
+    grid-template-columns: 1fr;
+  }
+
+  .home-med-card {
+    align-items: stretch;
+  }
+
+  .home-med-card__time {
+    width: fit-content;
+    min-width: 76px;
+    padding: 0 12px;
+  }
+
+  .home-med-card__actions {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 640px) {
+  .dashboard-container {
+    gap: 14px;
+  }
+
+  .home-hero,
+  .home-section {
+    padding: 18px;
+    border-radius: 14px;
+  }
+
+  .home-hero__status {
+    gap: 12px;
+  }
+
+  .home-hero__status > .home-hero__icon.ui-widget {
+    width: 42px;
+    min-width: 42px;
+    height: 42px;
+    margin-top: 1px;
+  }
+
+  .home-hero__status h2 {
+    font-size: 23px;
+  }
+
+  .home-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .home-summary__item {
+    min-height: 62px;
+  }
+
+  .home-section__header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .home-med-card__actions .btn-take,
+  .home-med-card__actions .btn-ignore {
+    flex: 1 1 130px;
+  }
+}
+
 .home-container.dark-mode .adicionar-header {
   background: transparent;
   background-image: none;
