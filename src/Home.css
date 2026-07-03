@@ -531,7 +531,7 @@ button .ui-widget {
   gap: 1rem;
   padding: 1rem;
   background: #f8fafc;
-  border-radius: 12px;
+  border-radius: 8px;
   border-left: 4px solid #64748b;
   transition: all 0.3s ease;
 }
@@ -549,20 +549,39 @@ button .ui-widget {
   font-size: 1.5rem;
 }
 
+.reminder-icon.ui-widget {
+  margin-right: 0;
+  flex-shrink: 0;
+}
+
 .reminder-content {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
+  flex: 1;
+  min-width: 0;
 }
 
 .reminder-title {
   font-weight: 600;
   color: #1e293b;
+  overflow-wrap: anywhere;
+}
+
+.reminder-description {
+  color: #475569;
+  font-size: 0.9rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
 }
 
 .reminder-time {
   font-size: 0.9rem;
   color: #64748b;
+}
+
+.reminder-delete {
+  flex-shrink: 0;
 }
 
 .user-greeting {
@@ -657,6 +676,13 @@ button .ui-widget {
   flex-direction: column;
   gap: 0.5rem;
   width: 100%;
+}
+
+.agenda-subtitle {
+  margin: 1.25rem 0 0.75rem;
+  color: #1e293b;
+  font-size: 1.1rem;
+  font-weight: 700;
 }
 
 .historico, .farmacias, .configuracoes {
@@ -1050,6 +1076,15 @@ button .ui-widget {
 .btn-add-med:hover {
   transform: translateY(-2px);
   box-shadow: 0 8px 25px rgba(59, 130, 246, 0.4);
+}
+
+.btn-add-med.btn-add-reminder {
+  background: linear-gradient(135deg, #10b981 0%, #047857 100%);
+  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.26);
+}
+
+.btn-add-med.btn-add-reminder:hover {
+  box-shadow: 0 8px 25px rgba(16, 185, 129, 0.34);
 }
 
 .med-form {
@@ -2729,6 +2764,7 @@ button .ui-widget {
 .dark-mode .pharmacy-address,
 .dark-mode .history-time,
 .dark-mode .reminder-time,
+.dark-mode .reminder-description,
 .dark-mode .med-dosage,
 .dark-mode .med-row__meta,
 .dark-mode .item-date,
@@ -2778,6 +2814,7 @@ button .ui-widget {
 .dark-mode .med-info h4,
 .dark-mode .history-med,
 .dark-mode .reminder-title,
+.dark-mode .agenda-subtitle,
 .dark-mode .med-row__name,
 .dark-mode .pharmacy-name,
 .dark-mode .historico-info h4,
@@ -4423,6 +4460,14 @@ button .ui-widget { color: currentColor; }
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 16px;
+}
+
+.home-section__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .home-section__header h3 {

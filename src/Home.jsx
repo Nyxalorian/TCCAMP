@@ -398,6 +398,44 @@ function Home({ onLogout, userData }) {
     return null
   }
 
+  const getReminderDate = (lembrete) => {
+    if (!lembrete?.data) return null
+    const date = new Date(`${lembrete.data}T${lembrete.horario || '00:00'}`)
+    return Number.isNaN(date.getTime()) ? null : date
+  }
+
+  const formatReminderDateTime = (lembrete) => {
+    const date = getReminderDate(lembrete)
+    if (!date) return [lembrete?.data, lembrete?.horario].filter(Boolean).join(' ')
+
+    return new Intl.DateTimeFormat('pt-BR', {
+      dateStyle: 'short',
+      timeStyle: 'short'
+    }).format(date)
+  }
+
+  const getSortedLembretes = () => {
+    if (!Array.isArray(lembretes)) return []
+
+    return [...lembretes].sort((a, b) => {
+      const dateA = getReminderDate(a)?.getTime() || 0
+      const dateB = getReminderDate(b)?.getTime() || 0
+      return dateA - dateB
+    })
+  }
+
+  const getUpcomingLembretes = (limit) => {
+    const now = new Date()
+    const sortedLembretes = getSortedLembretes()
+    const upcoming = sortedLembretes.filter((lembrete) => {
+      const reminderDate = getReminderDate(lembrete)
+      return !reminderDate || reminderDate >= now
+    })
+    const source = upcoming.length > 0 ? upcoming : sortedLembretes
+
+    return typeof limit === 'number' ? source.slice(0, limit) : source
+  }
+
   const isSameDay = (left, right) => {
     return left.getFullYear() === right.getFullYear()
       && left.getMonth() === right.getMonth()
@@ -966,6 +1004,7 @@ function Home({ onLogout, userData }) {
     const proximosMedicamentos = medicamentosOrdenados
       .filter((med) => !['TOMADO', 'IGNORADO'].includes(getMedicationStatusToday(med)))
       .slice(0, 4)
+    const lembretesDashboard = getUpcomingLembretes(4)
 
     const heroStatus = dailyStats.perdidos > 0
       ? {
@@ -1083,6 +1122,54 @@ function Home({ onLogout, userData }) {
           </div>
         </section>
 
+        <section className="home-section">
+          <div className="home-section__header">
+            <div>
+              <p>Agenda pessoal</p>
+              <h3>Próximos lembretes</h3>
+            </div>
+            <div className="home-section__actions">
+              <button className="btn-link" onClick={() => setActiveSection('agenda')}>Ver todos</button>
+              <button className="btn-link" onClick={() => setActiveSection('adicionar-lembrete')}>Novo lembrete</button>
+            </div>
+          </div>
+
+          <div className="reminders-list reminders-list--dashboard">
+            {lembretesDashboard.length === 0 ? (
+              <div className="home-empty-state">
+                <span>Nenhum lembrete cadastrado ainda.</span>
+                <button onClick={() => setActiveSection('adicionar-lembrete')} className="empty-action">
+                  Adicionar primeiro lembrete
+                </button>
+              </div>
+            ) : (
+              lembretesDashboard.map((lembrete) => {
+                const reminderDate = getReminderDate(lembrete)
+                const isPast = reminderDate && reminderDate < agora
+
+                return (
+                  <article key={lembrete.id} className={`reminder-item ${isPast ? 'priority' : ''}`}>
+                    <Widget type={isPast ? 'warning' : 'bell'} className="reminder-icon" />
+                    <div className="reminder-content">
+                      <strong className="reminder-title">{lembrete.titulo}</strong>
+                      {lembrete.descricao && <span className="reminder-description">{lembrete.descricao}</span>}
+                      <span className="reminder-time">{formatReminderDateTime(lembrete)}</span>
+                    </div>
+                    <button
+                      type="button"
+                      className="btn-delete-small reminder-delete"
+                      onClick={() => handleDeleteLembrete(lembrete.id)}
+                      title="Excluir lembrete"
+                    >
+                      <Widget type="delete" />
+                    </button>
+                  </article>
+                )
+              })
+            )}
+          </div>
+        </section>
+
         <div className="home-quick-actions">
           <button onClick={() => setActiveSection('agenda')}>
             <Widget type="list" />
@@ -1182,6 +1269,9 @@ function Home({ onLogout, userData }) {
       showToastMessage('Lembrete adicionado com sucesso!')
       setNovoLembrete({ titulo: '', descricao: '', data: '', horario: '' })
       carregarLembretes()
+      setActiveSection('agenda')
+    } else {
+      showToastMessage('Preencha os campos obrigatorios do lembrete!')
     }
   }
   
@@ -1192,6 +1282,20 @@ function Home({ onLogout, userData }) {
     const lembretesExistentes = JSON.parse(localStorage.getItem('lembretes') || '[]')
     const lembretesUsuario = lembretesExistentes.filter(l => l.usuario === userName)
     setLembretes(lembretesUsuario)
+  }
+
+  const handleDeleteLembrete = (lembreteId) => {
+    if (!window.confirm('Tem certeza que deseja excluir este lembrete?')) return
+
+    const userName = sessionStorage.getItem('userName')
+    const lembretesExistentes = JSON.parse(localStorage.getItem('lembretes') || '[]')
+    const lembretesAtualizados = lembretesExistentes.filter((lembrete) => {
+      return !(String(lembrete.id) === String(lembreteId) && lembrete.usuario === userName)
+    })
+
+    localStorage.setItem('lembretes', JSON.stringify(lembretesAtualizados))
+    setLembretes((current) => current.filter((lembrete) => String(lembrete.id) !== String(lembreteId)))
+    showToastMessage('Lembrete excluido com sucesso!')
   }
   
   const carregarHistoricoCompleto = async () => {
@@ -1486,16 +1590,22 @@ setPerfil({
 
 
   const renderAgenda = () => {
-    const medicamentosFiltrados = agendaMedicamentos.filter(med => 
-      med.nome.toLowerCase().includes(searchTerm.toLowerCase())
+    const normalizedSearchTerm = searchTerm.toLowerCase()
+    const medicamentosFiltrados = agendaMedicamentos.filter(med =>
+      med.nome.toLowerCase().includes(normalizedSearchTerm)
+    )
+    const lembretesFiltrados = getSortedLembretes().filter((lembrete) =>
+      `${lembrete.titulo} ${lembrete.descricao || ''} ${formatReminderDateTime(lembrete)}`
+        .toLowerCase()
+        .includes(normalizedSearchTerm)
     )
     return (
       <>
-        <h2 className="section-title">Agenda de medicamentos</h2>
+        <h2 className="section-title">Agenda</h2>
         <div className="search-container">
           <input
             type="text"
-            placeholder="Buscar medicamento..."
+            placeholder="Buscar medicamento ou lembrete..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="search-input"
@@ -1507,7 +1617,15 @@ setPerfil({
             <Widget type="add" className="btn-icon" />
             Adicionar Medicamento
           </button>
+          <button
+            className="btn-add-med btn-add-reminder"
+            onClick={() => setActiveSection('adicionar-lembrete')}
+          >
+            <Widget type="bell" className="btn-icon" />
+            Adicionar Lembrete
+          </button>
         </div>
+        <h3 className="agenda-subtitle">Medicamentos</h3>
         <div className="agenda">
           {loading ? (
             <div style={{textAlign: 'center', padding: '40px'}}>Carregando medicamentos...</div>
@@ -1550,6 +1668,46 @@ setPerfil({
               </div>
             )
           })}
+        </div>
+
+        <h3 className="agenda-subtitle">Lembretes</h3>
+        <div className="agenda reminders-list reminders-list--agenda">
+          {lembretesFiltrados.length === 0 ? (
+            <div className="home-empty-state agenda-empty-state">
+              <span>{searchTerm ? 'Nenhum lembrete encontrado com esse termo.' : 'Nenhum lembrete cadastrado ainda.'}</span>
+              <button
+                type="button"
+                onClick={() => setActiveSection('adicionar-lembrete')}
+                className="empty-action"
+              >
+                Adicionar Lembrete
+              </button>
+            </div>
+          ) : (
+            lembretesFiltrados.map((lembrete) => {
+              const reminderDate = getReminderDate(lembrete)
+              const isPast = reminderDate && reminderDate < new Date()
+
+              return (
+                <article key={lembrete.id} className={`reminder-item ${isPast ? 'priority' : ''}`}>
+                  <Widget type={isPast ? 'warning' : 'bell'} className="reminder-icon" />
+                  <div className="reminder-content">
+                    <strong className="reminder-title">{lembrete.titulo}</strong>
+                    {lembrete.descricao && <span className="reminder-description">{lembrete.descricao}</span>}
+                    <span className="reminder-time">{formatReminderDateTime(lembrete)}</span>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn-delete-small reminder-delete"
+                    onClick={() => handleDeleteLembrete(lembrete.id)}
+                    title="Excluir lembrete"
+                  >
+                    <Widget type="delete" />
+                  </button>
+                </article>
+              )
+            })
+          )}
         </div>
       </>
     )

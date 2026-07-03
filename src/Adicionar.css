@@ -462,6 +462,8 @@
 .add-flow__type-grid,
 .add-flow__form {
   width: min(100%, 1040px);
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .home-container .add-flow__header {
@@ -611,7 +613,10 @@
 }
 
 .home-container .add-flow__form {
-  max-width: none;
+  width: min(100%, 860px);
+  max-width: 860px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .home-container .add-card.add-card--single {
