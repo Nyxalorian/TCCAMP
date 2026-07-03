@@ -24,3 +24,23 @@ messaging.onBackgroundMessage((payload) => {
     badge: "https://pharmalife-81306.web.app/favicon.png"
   });
 });
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+
+  event.waitUntil(
+    clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
+      const openClient = clientList.find((client) => "focus" in client);
+
+      if (openClient) {
+        return openClient.focus();
+      }
+
+      if (clients.openWindow) {
+        return clients.openWindow("/");
+      }
+
+      return undefined;
+    })
+  );
+});

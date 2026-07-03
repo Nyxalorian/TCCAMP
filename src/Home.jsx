@@ -5,9 +5,16 @@ import './Accessibility.css'
 import Sobre from './Sobre'
 import pharmalifeLogo from './assets/pharmalife-logo.png'
 import API_CONFIG from './config'
+import {
+  garantirPermissaoNotificacao,
+  mostrarNotificacaoLocal
+} from './notificationService'
 
 
 const API_BASE_URL = API_CONFIG.BASE_URL
+const REMINDER_NOTIFICATION_STORAGE_KEY = 'lembretesNotificados'
+const REMINDER_NOTIFICATION_CHECK_INTERVAL_MS = 15 * 1000
+const REMINDER_NOTIFICATION_GRACE_MS = 60 * 60 * 1000
 
 const accessibilityScales = {
   normal: { font: 1, spacing: 1, icon: 1, tap: 1 },
@@ -177,6 +184,51 @@ function Widget({ type, className = '' }) {
     <span className={`ui-widget ui-widget--${type} ${className}`.trim()} aria-hidden="true">
       {widgetIcons[type] || widgetLabels[type] || type.toUpperCase()}
     </span>
+  )
+}
+
+const getReminderNotificationKey = (lembrete) => {
+  return [
+    lembrete?.usuario || 'usuario',
+    lembrete?.id || '',
+    lembrete?.data || '',
+    lembrete?.horario || ''
+  ].map(String).join('|')
+}
+
+const getReminderTimestamp = (lembrete) => {
+  if (!lembrete?.data) return null
+  const date = new Date(`${lembrete.data}T${lembrete.horario || '00:00'}`)
+  const timestamp = date.getTime()
+  return Number.isNaN(timestamp) ? null : timestamp
+}
+
+const formatReminderNotificationTime = (lembrete) => {
+  const timestamp = getReminderTimestamp(lembrete)
+  if (!timestamp) return [lembrete?.data, lembrete?.horario].filter(Boolean).join(' ')
+
+  return new Intl.DateTimeFormat('pt-BR', {
+    dateStyle: 'short',
+    timeStyle: 'short'
+  }).format(new Date(timestamp))
+}
+
+const getStoredReminderNotifications = () => {
+  try {
+    const stored = JSON.parse(localStorage.getItem(REMINDER_NOTIFICATION_STORAGE_KEY) || '[]')
+    return Array.isArray(stored) ? stored.map(String) : []
+  } catch {
+    return []
+  }
+}
+
+const markReminderAsNotified = (key) => {
+  const stored = getStoredReminderNotifications()
+  if (stored.includes(key)) return
+
+  localStorage.setItem(
+    REMINDER_NOTIFICATION_STORAGE_KEY,
+    JSON.stringify([...stored, key].slice(-300))
   )
 }
 
@@ -435,6 +487,42 @@ function Home({ onLogout, userData }) {
 
     return typeof limit === 'number' ? source.slice(0, limit) : source
   }
+
+  useEffect(() => {
+    if (!Array.isArray(lembretes) || lembretes.length === 0) return undefined
+
+    const checkDueReminders = () => {
+      const now = Date.now()
+
+      lembretes.forEach((lembrete) => {
+        const reminderTime = getReminderTimestamp(lembrete)
+        if (!reminderTime) return
+
+        const delay = now - reminderTime
+        if (delay < 0 || delay > REMINDER_NOTIFICATION_GRACE_MS) return
+
+        const notificationKey = getReminderNotificationKey(lembrete)
+        if (getStoredReminderNotifications().includes(notificationKey)) return
+
+        markReminderAsNotified(notificationKey)
+
+        const titulo = lembrete?.titulo || 'Lembrete de saude'
+        const descricao = typeof lembrete?.descricao === 'string' ? lembrete.descricao.trim() : ''
+        const horario = formatReminderNotificationTime(lembrete)
+
+        mostrarNotificacaoLocal({
+          title: `Lembrete: ${titulo}`,
+          body: descricao || `Horario marcado para ${horario}`,
+          tag: `pharmalife-lembrete-${notificationKey}`
+        })
+      })
+    }
+
+    checkDueReminders()
+    const intervalId = window.setInterval(checkDueReminders, REMINDER_NOTIFICATION_CHECK_INTERVAL_MS)
+
+    return () => window.clearInterval(intervalId)
+  }, [lembretes])
 
   const isSameDay = (left, right) => {
     return left.getFullYear() === right.getFullYear()
@@ -1254,9 +1342,18 @@ function Home({ onLogout, userData }) {
     }
   }
 
-  const handleAddLembrete = (e) => {
+  const handleAddLembrete = async (e) => {
     e.preventDefault()
     if (novoLembrete.titulo && novoLembrete.data && novoLembrete.horario) {
+      let notificationPermission = 'default'
+
+      try {
+        notificationPermission = await garantirPermissaoNotificacao()
+      } catch (error) {
+        console.error('Erro ao solicitar permissao de notificacao:', error)
+        notificationPermission = 'denied'
+      }
+
       const lembretesExistentes = JSON.parse(localStorage.getItem('lembretes') || '[]')
       const novoLembreteObj = {
         id: Date.now(),
@@ -1266,7 +1363,11 @@ function Home({ onLogout, userData }) {
       lembretesExistentes.push(novoLembreteObj)
       localStorage.setItem('lembretes', JSON.stringify(lembretesExistentes))
       
-      showToastMessage('Lembrete adicionado com sucesso!')
+      showToastMessage(
+        notificationPermission === 'granted'
+          ? 'Lembrete adicionado com sucesso!'
+          : 'Lembrete adicionado, mas as notificacoes nao estao ativadas.'
+      )
       setNovoLembrete({ titulo: '', descricao: '', data: '', horario: '' })
       carregarLembretes()
       setActiveSection('agenda')
