@@ -237,7 +237,8 @@ function Home({ onLogout, userData }) {
     dosagem: '',
     horario: '',
     frequencia: 'diario',
-    duracao: '1-semana'
+    duracao: '1-semana',
+    observacoes: ''
   })
 
   // restante do código...
@@ -1083,9 +1084,9 @@ function Home({ onLogout, userData }) {
         </section>
 
         <div className="home-quick-actions">
-          <button onClick={() => setActiveSection('adicionar-lembrete')}>
-            <Widget type="bell" />
-            Novo Lembrete
+          <button onClick={() => setActiveSection('agenda')}>
+            <Widget type="list" />
+            Agenda
           </button>
           <button onClick={() => setActiveSection('historico')}>
             <Widget type="list" />
@@ -1121,7 +1122,7 @@ function Home({ onLogout, userData }) {
                 horario: novoMedicamento.horario || '08:00',
                 dataInicio: toBackendDateTime(new Date()),
                 dataFim: toBackendDateTime(getTreatmentEndDate(novoMedicamento.duracao)),
-                observacoes: novoMedicamento.duracao || ''
+                observacoes: novoMedicamento.observacoes || ''
               })
             })
             if (!novaAgendaResp.ok) {
@@ -1143,13 +1144,13 @@ function Home({ onLogout, userData }) {
             nome: novoMedicamento.nome,
             descricao: novoMedicamento.dosagem,
             tipo: normalizeFrequency(novoMedicamento.frequencia),
-            complemento: novoMedicamento.duracao || '',
+            complemento: novoMedicamento.observacoes || novoMedicamento.duracao || '',
             statusMedicamento: 'ATIVO'
           })
         })
         if (response.ok) {
           showToastMessage('Medicamento adicionado com sucesso!')
-          setNovoMedicamento({ nome: '', dosagem: '', horario: '', frequencia: 'diario', duracao: '1-semana' })
+          setNovoMedicamento({ nome: '', dosagem: '', horario: '', frequencia: 'diario', duracao: '1-semana', observacoes: '' })
           await carregarMedicamentos()
           carregarHistoricoCompleto()
         } else {
@@ -1556,20 +1557,20 @@ setPerfil({
 
   const renderMedicamentoForm = () => (
     <div className="add-card medicamento-card add-card--single">
-      <div className="card-header-modern">
-        <div className="card-icon-large"><Widget type="pill" /></div>
-        <div className="card-title-section">
-          <h3>Dados do medicamento</h3>
-          <p>Essas informações entram direto na sua agenda de tratamento.</p>
-        </div>
-      </div>
-
       <div className="form-modern">
+        <div className="add-form-heading">
+          <Widget type="pill" className="add-form-heading__icon" />
+          <div>
+            <h2>Novo Medicamento</h2>
+            <p>Preencha as informacoes do medicamento.</p>
+          </div>
+        </div>
+
         <div className="input-group">
           <label>Nome do medicamento</label>
           <input
             type="text"
-            placeholder="Ex: Paracetamol, Dipirona..."
+            placeholder="Ex: Paracetamol, Dipirona, Ibuprofeno..."
             value={novoMedicamento.nome}
             onChange={(e) => setNovoMedicamento({...novoMedicamento, nome: e.target.value})}
             className="input-modern"
@@ -1577,7 +1578,7 @@ setPerfil({
           />
         </div>
 
-        <div className="input-row">
+        <div className="input-row input-row--three">
           <div className="input-group">
             <label>Dosagem</label>
             <input
@@ -1600,9 +1601,7 @@ setPerfil({
               required
             />
           </div>
-        </div>
 
-        <div className="input-row">
           <div className="input-group">
             <label>Frequencia</label>
             <select
@@ -1616,25 +1615,36 @@ setPerfil({
               <option value="Semanal">Semanal</option>
             </select>
           </div>
+        </div>
 
-          <div className="input-group">
-            <label>Duracao do tratamento</label>
-            <select
-              value={novoMedicamento.duracao}
-              onChange={(e) => setNovoMedicamento({...novoMedicamento, duracao: e.target.value})}
-              className="select-modern"
-            >
-              <option value="1-semana">1 semana</option>
-              <option value="1 dia">1 dia</option>
-              <option value="3 dias">3 dias</option>
-              <option value="5 dias">5 dias</option>
-              <option value="2 semanas">2 semanas</option>
-              <option value="1 mês">1 mes</option>
-              <option value="3 meses">3 meses</option>
-              <option value="6 meses">6 meses</option>
-              <option value="Contínuo">Continuo</option>
-            </select>
-          </div>
+        <div className="input-group">
+          <label>Duracao do tratamento</label>
+          <select
+            value={novoMedicamento.duracao}
+            onChange={(e) => setNovoMedicamento({...novoMedicamento, duracao: e.target.value})}
+            className="select-modern"
+          >
+            <option value="1-semana">1 semana</option>
+            <option value="1 dia">1 dia</option>
+            <option value="3 dias">3 dias</option>
+            <option value="5 dias">5 dias</option>
+            <option value="2 semanas">2 semanas</option>
+            <option value="1 mês">1 mes</option>
+            <option value="3 meses">3 meses</option>
+            <option value="6 meses">6 meses</option>
+            <option value="Contínuo">Continuo</option>
+          </select>
+        </div>
+
+        <div className="input-group">
+          <label>Observacoes (opcional)</label>
+          <textarea
+            placeholder="Ex: Tomar apos as refeicoes, com bastante agua..."
+            value={novoMedicamento.observacoes}
+            onChange={(e) => setNovoMedicamento({...novoMedicamento, observacoes: e.target.value})}
+            className="textarea-modern"
+            rows="3"
+          />
         </div>
 
         <button
@@ -1642,7 +1652,7 @@ setPerfil({
           className="btn-add-modern medicamento"
           type="button"
         >
-          <Widget type="pill" className="btn-icon" />
+          <Widget type="add" className="btn-icon" />
           Adicionar Medicamento
         </button>
       </div>
@@ -1651,15 +1661,15 @@ setPerfil({
 
   const renderLembreteForm = () => (
     <div className="add-card lembrete-card add-card--single">
-      <div className="card-header-modern">
-        <div className="card-icon-large"><Widget type="bell" /></div>
-        <div className="card-title-section">
-          <h3>Detalhes do lembrete</h3>
-          <p>Use lembretes para consultas, exames e cuidados complementares.</p>
-        </div>
-      </div>
-
       <div className="form-modern">
+        <div className="add-form-heading">
+          <Widget type="bell" className="add-form-heading__icon" />
+          <div>
+            <h2>Novo Lembrete</h2>
+            <p>Preencha as informacoes do lembrete.</p>
+          </div>
+        </div>
+
         <div className="input-group">
           <label>Titulo do lembrete</label>
           <input
@@ -1721,6 +1731,22 @@ setPerfil({
 
   const renderAdicionar = (tipo = 'medicamento') => {
     const isLembrete = tipo === 'lembrete'
+    const addOptions = [
+      {
+        type: 'medicamento',
+        icon: 'pill',
+        title: 'Medicamento',
+        description: 'Adicione um novo medicamento ao seu tratamento',
+        section: 'adicionar-medicamento'
+      },
+      {
+        type: 'lembrete',
+        icon: 'bell',
+        title: 'Lembrete',
+        description: 'Adicione um lembrete para consultas, exames ou cuidados',
+        section: 'adicionar-lembrete'
+      }
+    ]
 
     return (
       <div className="adicionar-container add-flow">
@@ -1728,91 +1754,38 @@ setPerfil({
           <div className="header-content">
             <div className="add-flow__breadcrumb">
               <button type="button" onClick={() => setActiveSection('dashboard')}>Dashboard</button>
-              <span>/</span>
-              <button type="button" onClick={() => setActiveSection(isLembrete ? 'dashboard' : 'agenda')}>
-                {isLembrete ? 'Lembretes' : 'Medicamentos'}
-              </button>
-              <span>/</span>
-              <strong>{isLembrete ? 'Novo lembrete' : 'Adicionar medicamento'}</strong>
+              <span>&gt;</span>
+              <strong>Adicionar</strong>
             </div>
-            <h1 className="page-title">{isLembrete ? 'Novo Lembrete' : 'Adicionar Medicamento'}</h1>
-            <p className="page-subtitle">
-              {isLembrete
-                ? 'Organize cuidados complementares sem misturar com sua agenda de medicamentos.'
-                : 'Inclua um medicamento na sua rotina de tratamento para acompanhar horarios, tomadas e adesao.'}
-            </p>
+            <h1 className="page-title">Adicionar</h1>
+            <p className="page-subtitle">Escolha o que deseja adicionar a sua agenda de tratamento.</p>
           </div>
         </div>
 
-        <div className="add-flow__layout">
-          <aside className="add-flow__context" aria-label="Fluxo atual">
-            <button
-              type="button"
-              className={!isLembrete ? 'active' : ''}
-              onClick={() => setActiveSection('adicionar-medicamento')}
-            >
-              <Widget type="pill" />
-              Medicamento
-            </button>
-            <button
-              type="button"
-              className={isLembrete ? 'active' : ''}
-              onClick={() => setActiveSection('adicionar-lembrete')}
-            >
-              <Widget type="bell" />
-              Lembrete
-            </button>
-            <p>
-              {isLembrete
-                ? 'Lembretes ajudam a lembrar consultas, exames e tarefas de cuidado.'
-                : 'Medicamentos sao o centro da agenda: dose, horario e frequencia viram acompanhamento diario.'}
-            </p>
-          </aside>
-
-          <div className="add-flow__form">
-            {isLembrete ? renderLembreteForm() : renderMedicamentoForm()}
-          </div>
+        <div className="add-flow__type-grid" role="tablist" aria-label="Tipo de cadastro">
+          {addOptions.map((option) => {
+            const selected = option.type === tipo
+            return (
+              <button
+                key={option.type}
+                type="button"
+                className={`add-type-card add-type-card--${option.type} ${selected ? 'is-selected' : ''}`}
+                onClick={() => setActiveSection(option.section)}
+                aria-pressed={selected}
+              >
+                <Widget type={option.icon} className="add-type-card__icon" />
+                <span className="add-type-card__body">
+                  <strong>{option.title}</strong>
+                  <small>{option.description}</small>
+                </span>
+                {selected && <Widget type="checklist" className="add-type-card__check" />}
+              </button>
+            )
+          })}
         </div>
 
-        <div className="tips-section add-flow__tips">
-          <h3><Widget type="sparkle" className="title-widget" />{isLembrete ? 'Boas praticas para lembretes' : 'Boas praticas para o tratamento'}</h3>
-          <div className="tips-grid">
-            {isLembrete ? (
-              <>
-                <div className="tip-card">
-                  <span className="tip-icon"><Widget type="bell" /></span>
-                  <div>
-                    <h4>Contexto claro</h4>
-                    <p>Use nomes objetivos para reconhecer rapidamente o compromisso.</p>
-                  </div>
-                </div>
-                <div className="tip-card">
-                  <span className="tip-icon"><Widget type="time" /></span>
-                  <div>
-                    <h4>Antecedencia</h4>
-                    <p>Cadastre o horario em que voce precisa ser lembrado, nao apenas o horario do evento.</p>
-                  </div>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="tip-card">
-                  <span className="tip-icon"><Widget type="time" /></span>
-                  <div>
-                    <h4>Horarios regulares</h4>
-                    <p>Mantenha sempre os mesmos horarios para melhorar a consistencia do tratamento.</p>
-                  </div>
-                </div>
-                <div className="tip-card">
-                  <span className="tip-icon"><Widget type="doctor" /></span>
-                  <div>
-                    <h4>Orientacao medica</h4>
-                    <p>Cadastre exatamente como foi orientado pelo profissional de saude.</p>
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
+        <div className="add-flow__form">
+          {isLembrete ? renderLembreteForm() : renderMedicamentoForm()}
         </div>
       </div>
     )
