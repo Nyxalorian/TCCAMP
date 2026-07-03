@@ -2589,9 +2589,9 @@ setPerfil({
       'dashboard': 'PharmaLife - Home',
       'agenda': 'PharmaLife - Agenda',
       'historico': 'PharmaLife - Histórico',
-      'adicionar': 'PharmaLife - Adicionar Medicamento',
-      'adicionar-medicamento': 'PharmaLife - Adicionar Medicamento',
-      'adicionar-lembrete': 'PharmaLife - Novo Lembrete',
+      'adicionar': 'PharmaLife - Adicionar',
+      'adicionar-medicamento': 'PharmaLife - Adicionar',
+      'adicionar-lembrete': 'PharmaLife - Adicionar',
       'configuracoes': 'PharmaLife - Configurações',
       'ajuda': 'PharmaLife - Ajuda'
     }
@@ -2736,18 +2736,11 @@ setPerfil({
             Agenda
           </button>
           <button
-            className={['adicionar', 'adicionar-medicamento'].includes(activeSection) ? 'active' : ''}
-            onClick={() => setActiveSection('adicionar-medicamento')}
+            className={['adicionar', 'adicionar-medicamento', 'adicionar-lembrete'].includes(activeSection) ? 'active' : ''}
+            onClick={() => setActiveSection('adicionar')}
           >
             <Widget type="add" className="nav-icon" />
-            Novo Medicamento
-          </button>
-          <button
-            className={activeSection === 'adicionar-lembrete' ? 'active' : ''}
-            onClick={() => setActiveSection('adicionar-lembrete')}
-          >
-            <Widget type="bell" className="nav-icon" />
-            Novo Lembrete
+            Adicionar
           </button>
           <button 
             className={activeSection === 'historico' ? 'active' : ''} 
