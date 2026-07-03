@@ -3712,8 +3712,8 @@ button .ui-widget { color: currentColor; }
 }
 
 .status-badge--pending {
-  background: #FEF3C7 !important;
-  color: #92400E !important;
+  background: #DBEAFE !important;
+  color: #1D4ED8 !important;
 }
 
 .status-badge--missed {
@@ -3732,7 +3732,7 @@ button .ui-widget { color: currentColor; }
 }
 
 .med-row--pendente {
-  border-left-color: #F59E0B;
+  border-left-color: #3B82F6;
 }
 
 .med-row--perdido {
@@ -4223,6 +4223,16 @@ button .ui-widget { color: currentColor; }
   background: rgba(59, 130, 246, 0.18);
   border-color: rgba(96, 165, 250, 0.45);
   color: #93C5FD;
+}
+
+.home-container.dark-mode .med-row--pendente {
+  border-left-color: #60A5FA !important;
+}
+
+.home-container.dark-mode .med-row--pendente .status-badge--pending {
+  background: rgba(59, 130, 246, 0.18) !important;
+  color: #93C5FD !important;
+  border: 1px solid rgba(96, 165, 250, 0.35);
 }
 
 .home-container.dark-mode .btn-add-modern.medicamento {
