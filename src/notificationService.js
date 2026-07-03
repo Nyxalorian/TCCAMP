@@ -34,13 +34,13 @@ export function escutarMensagens() {
   onMessage(messaging, (payload) => {
     console.log("📩 Mensagem recebida:", payload);
 
-    const title = payload.notification?.title || "Agenda MP";
-    const body = payload.notification?.body || "";
+    const title = payload.notification?.title || payload.data?.title || "PharmaLife";
+    const body = payload.notification?.body || payload.data?.body || "";
 
     if (Notification.permission === "granted") {
       const notification = new Notification(title, {
         body: body,
-        icon: "/logo192.png",
+        icon: "/favicon.png",
       });
 
       notification.onclick = () => {
