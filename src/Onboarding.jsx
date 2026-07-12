@@ -442,18 +442,33 @@ function Onboarding({ userData, onComplete, onLogout }) {
               </p>
               <div className="onboarding-terms">
                 <p>
-                  O PharmaLife e uma ferramenta de organizacao de rotina. Ele ajuda a registrar medicamentos, horarios,
-                  lembretes e historico, mas nao substitui orientacao medica, consulta profissional, receita ou atendimento
-                  de emergencia.
+                  O PharmaLife e uma ferramenta de organizacao de rotina voltada ao gerenciamento de medicamentos.
+                  A plataforma auxilia no registro de medicamentos, horarios, lembretes e historico, mas nao substitui
+                  orientacao medica, consulta com profissionais de saude, prescricao medica ou atendimento de urgencia
+                  e emergencia.
                 </p>
+                <p>Ao utilizar o PharmaLife, o usuario compromete-se a:</p>
                 <ul>
-                  <li>Cadastre apenas informacoes verdadeiras e revise nomes, doses e horarios antes de salvar.</li>
-                  <li>Siga sempre a orientacao do medico, farmaceutico ou profissional de saude responsavel.</li>
-                  <li>Em caso de urgencia, reacao adversa ou duvida sobre o medicamento, procure atendimento de saude.</li>
-                  <li>As notificacoes dependem do navegador, dispositivo, internet, bateria e permissoes do sistema.</li>
-                  <li>Menores de 16 anos ou pessoas que precisam de apoio devem usar a plataforma com responsavel ou cuidador.</li>
-                  <li>Os dados informados sao usados para exibir sua conta, agenda, lembretes, acessibilidade e historico.</li>
+                  <li>Cadastrar apenas informacoes verdadeiras, completas e atualizadas.</li>
+                  <li>Revisar os nomes dos medicamentos, doses e horarios antes de salvar qualquer informacao.</li>
+                  <li>Seguir sempre as orientacoes do medico, farmaceutico ou outro profissional de saude responsavel pelo tratamento.</li>
+                  <li>Procurar atendimento medico ou farmaceutico em caso de urgencia, reacao adversa, duvidas sobre o tratamento ou qualquer situacao que exija avaliacao profissional.</li>
                 </ul>
+                <p>
+                  As notificacoes e lembretes disponibilizados pelo PharmaLife possuem carater exclusivamente auxiliar
+                  e podem sofrer limitacoes em razao do navegador, dispositivo, conexao com a internet, nivel de bateria,
+                  permissoes do sistema operacional ou outros fatores tecnicos. Dessa forma, o usuario permanece
+                  responsavel pelo acompanhamento de seu tratamento.
+                </p>
+                <p>
+                  Recomenda-se que menores de 16 anos e pessoas que necessitem de apoio utilizem a plataforma com o
+                  acompanhamento de um responsavel legal ou cuidador.
+                </p>
+                <p>
+                  Os dados informados pelo usuario sao utilizados para o funcionamento da plataforma, incluindo a exibicao
+                  da conta, da agenda de medicamentos, dos lembretes, dos recursos de acessibilidade e do historico de
+                  utilizacao, conforme descrito na Politica de Privacidade.
+                </p>
               </div>
               <label className={`onboarding-terms-accept ${acceptedTerms ? 'selected' : ''}`}>
                 <input
