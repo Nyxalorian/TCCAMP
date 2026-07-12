@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import './Onboarding.css'
 import API_CONFIG from './config'
+import { normalizeNotificationType, NOTIFICATION_TYPES } from './notificationService'
 
 const API_BASE_URL = API_CONFIG.BASE_URL
 const NO_COMORBIDITIES = 'Nao possuo comorbidades'
@@ -67,6 +68,15 @@ function StepIcon({ type }) {
         <path d="M21 16h-4" />
       </>
     ),
+    terms: (
+      <>
+        <path d="M6 3h9l3 3v15H6V3Z" />
+        <path d="M14 3v4h4" />
+        <path d="M9 11h6" />
+        <path d="M9 15h6" />
+        <path d="M9 19h3" />
+      </>
+    ),
     user: (
       <>
         <circle cx="12" cy="8" r="4" />
@@ -84,6 +94,12 @@ function StepIcon({ type }) {
     heart: (
       <>
         <path d="M20.4 5.6a5.2 5.2 0 0 0-7.4 0L12 6.7l-1-1.1a5.2 5.2 0 0 0-7.4 7.4L12 21l8.4-8a5.2 5.2 0 0 0 0-7.4Z" />
+      </>
+    ),
+    bell: (
+      <>
+        <path d="M10 5a2 2 0 0 1 4 0 7 7 0 0 1 4 6v3l2 3H4l2-3v-3a7 7 0 0 1 4-6Z" />
+        <path d="M10 19a2 2 0 0 0 4 0" />
       </>
     ),
     success: (
@@ -113,11 +129,15 @@ function Onboarding({ userData, onComplete, onLogout }) {
     comorbidades: initialComorbidities,
     outraComorbidade: initialComorbidities.find((item) => !comorbidityOptions.includes(item)) || ''
   })
+  const [notificationType, setNotificationType] = useState(() => {
+    return normalizeNotificationType(userData?.tipoNotificacao)
+  })
+  const [acceptedTerms, setAcceptedTerms] = useState(false)
 
-  const totalQuestions = 3
+  const totalQuestions = 5
   const progress = useMemo(() => {
     if (step === 0) return 8
-    if (step >= 4) return 100
+    if (step >= 6) return 100
     return Math.round((step / totalQuestions) * 100)
   }, [step])
 
@@ -176,7 +196,7 @@ function Onboarding({ userData, onComplete, onLogout }) {
       return
     }
 
-    setStep((current) => Math.min(current + 1, 4))
+    setStep((current) => Math.min(current + 1, 6))
   }
 
   const goBack = () => {
@@ -184,6 +204,11 @@ function Onboarding({ userData, onComplete, onLogout }) {
   }
 
   const finishOnboarding = async () => {
+    if (!acceptedTerms) {
+      alert('Para finalizar, leia e aceite os termos de uso da plataforma.')
+      return
+    }
+
     const comorbidade = getComorbidityValue()
     setSaving(true)
 
@@ -203,10 +228,31 @@ function Onboarding({ userData, onComplete, onLogout }) {
       }
 
       const updatedUser = await response.json()
-      sessionStorage.setItem('usuario', JSON.stringify(updatedUser))
-      sessionStorage.setItem('userName', updatedUser.nome)
-      sessionStorage.setItem('userEmail', updatedUser.email)
-      setStep(4)
+
+      const notificationResponse = await fetch(`${API_BASE_URL}/api/usuarios/${userData.id}/tipo-notificacao`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tipoNotificacao: notificationType
+        })
+      })
+
+      if (!notificationResponse.ok) {
+        throw new Error('Nao foi possivel salvar o tipo de notificacao.')
+      }
+
+      const updatedNotificationUser = await notificationResponse.json()
+      const completedUser = {
+        ...updatedUser,
+        ...updatedNotificationUser,
+        tipoNotificacao: notificationType
+      }
+
+      sessionStorage.setItem('usuario', JSON.stringify(completedUser))
+      sessionStorage.setItem('userName', completedUser.nome)
+      sessionStorage.setItem('userEmail', completedUser.email)
+      sessionStorage.setItem('notificationType', notificationType)
+      setStep(6)
     } catch (error) {
       console.error(error)
       alert(error.message || 'Erro ao finalizar onboarding')
@@ -216,10 +262,22 @@ function Onboarding({ userData, onComplete, onLogout }) {
   }
 
   const finishAndEnter = () => {
+    try {
+      const storedUser = JSON.parse(sessionStorage.getItem('usuario') || 'null')
+      if (storedUser) {
+        onComplete(storedUser)
+        return
+      }
+    } catch {
+      // Usa os dados locais abaixo caso a sessao nao esteja disponivel.
+    }
+
     onComplete({
       ...userData,
       ...profile,
-      comorbidade: getComorbidityValue()
+      comorbidade: getComorbidityValue(),
+      tipoNotificacao: notificationType,
+      aceitouTermos: acceptedTerms
     })
   }
 
@@ -270,7 +328,7 @@ function Onboarding({ userData, onComplete, onLogout }) {
           {step === 1 && (
             <>
               <StepIcon type="user" />
-              <p className="onboarding-kicker">Etapa 1 de 3</p>
+              <p className="onboarding-kicker">Etapa 1 de 5</p>
               <h1>Como voce gostaria de ser chamado?</h1>
               <label className="onboarding-field">
                 <span>Nome de exibicao</span>
@@ -289,7 +347,7 @@ function Onboarding({ userData, onComplete, onLogout }) {
           {step === 2 && (
             <>
               <StepIcon type="calendar" />
-              <p className="onboarding-kicker">Etapa 2 de 3</p>
+              <p className="onboarding-kicker">Etapa 2 de 5</p>
               <h1>Qual e sua data de nascimento?</h1>
               <label className="onboarding-field">
                 <span>Data de nascimento</span>
@@ -307,7 +365,7 @@ function Onboarding({ userData, onComplete, onLogout }) {
           {step === 3 && (
             <>
               <StepIcon type="heart" />
-              <p className="onboarding-kicker">Etapa 3 de 3</p>
+              <p className="onboarding-kicker">Etapa 3 de 5</p>
               <h1>Voce possui alguma comorbidade?</h1>
               <p className="onboarding-hint">Selecione quantas opcoes quiser. Essa etapa e opcional.</p>
               <div className="onboarding-options">
@@ -337,6 +395,79 @@ function Onboarding({ userData, onComplete, onLogout }) {
 
           {step === 4 && (
             <>
+              <StepIcon type="bell" />
+              <p className="onboarding-kicker">Etapa 4 de 5</p>
+              <h1>Como voce quer receber os avisos?</h1>
+              <p className="onboarding-hint">
+                Escolha a melhor opcao para o computador onde voce usa o PharmaLife.
+              </p>
+              <div className="onboarding-notification-options" role="radiogroup" aria-label="Tipo de notificacao">
+                <label className={`onboarding-notification-option ${notificationType === NOTIFICATION_TYPES.SYSTEM ? 'selected' : ''}`}>
+                  <input
+                    type="radio"
+                    name="tipoNotificacao"
+                    value={NOTIFICATION_TYPES.SYSTEM}
+                    checked={notificationType === NOTIFICATION_TYPES.SYSTEM}
+                    onChange={() => setNotificationType(NOTIFICATION_TYPES.SYSTEM)}
+                  />
+                  <span>
+                    <strong>Notificacoes pelo sistema</strong>
+                    <small>Para computadores com Windows padrao e notificacoes liberadas.</small>
+                  </span>
+                </label>
+                <label className={`onboarding-notification-option ${notificationType === NOTIFICATION_TYPES.BROWSER ? 'selected' : ''}`}>
+                  <input
+                    type="radio"
+                    name="tipoNotificacao"
+                    value={NOTIFICATION_TYPES.BROWSER}
+                    checked={notificationType === NOTIFICATION_TYPES.BROWSER}
+                    onChange={() => setNotificationType(NOTIFICATION_TYPES.BROWSER)}
+                  />
+                  <span>
+                    <strong>Notificacao pelo Browser</strong>
+                    <small>Toca um som e mostra um aviso dentro do site quando chegar o horario.</small>
+                  </span>
+                </label>
+              </div>
+            </>
+          )}
+
+          {step === 5 && (
+            <>
+              <StepIcon type="terms" />
+              <p className="onboarding-kicker">Etapa 5 de 5</p>
+              <h1>Termos de uso da plataforma</h1>
+              <p className="onboarding-hint">
+                Leia as condicoes para usar o PharmaLife com seguranca.
+              </p>
+              <div className="onboarding-terms">
+                <p>
+                  O PharmaLife e uma ferramenta de organizacao de rotina. Ele ajuda a registrar medicamentos, horarios,
+                  lembretes e historico, mas nao substitui orientacao medica, consulta profissional, receita ou atendimento
+                  de emergencia.
+                </p>
+                <ul>
+                  <li>Cadastre apenas informacoes verdadeiras e revise nomes, doses e horarios antes de salvar.</li>
+                  <li>Siga sempre a orientacao do medico, farmaceutico ou profissional de saude responsavel.</li>
+                  <li>Em caso de urgencia, reacao adversa ou duvida sobre o medicamento, procure atendimento de saude.</li>
+                  <li>As notificacoes dependem do navegador, dispositivo, internet, bateria e permissoes do sistema.</li>
+                  <li>Menores de 16 anos ou pessoas que precisam de apoio devem usar a plataforma com responsavel ou cuidador.</li>
+                  <li>Os dados informados sao usados para exibir sua conta, agenda, lembretes, acessibilidade e historico.</li>
+                </ul>
+              </div>
+              <label className={`onboarding-terms-accept ${acceptedTerms ? 'selected' : ''}`}>
+                <input
+                  type="checkbox"
+                  checked={acceptedTerms}
+                  onChange={(e) => setAcceptedTerms(e.target.checked)}
+                />
+                <span>Li e aceito os termos de uso da plataforma.</span>
+              </label>
+            </>
+          )}
+
+          {step === 6 && (
+            <>
               <StepIcon type="success" />
               <p className="onboarding-kicker">Perfil concluido!</p>
               <h1>Agora voce ja pode utilizar todos os recursos do PharmaLife.</h1>
@@ -350,12 +481,12 @@ function Onboarding({ userData, onComplete, onLogout }) {
           )}
         </section>
 
-        {step > 0 && step < 4 && (
+        {step > 0 && step < 6 && (
           <footer className="onboarding-actions">
             <button type="button" className="onboarding-secondary" onClick={goBack}>
               Voltar
             </button>
-            {step < 3 ? (
+            {step < 5 ? (
               <button type="button" className="onboarding-primary" onClick={goNext}>
                 Continuar
               </button>

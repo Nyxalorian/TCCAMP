@@ -10,7 +10,9 @@ import './Accessibility.css'
 import API_CONFIG from './config'
 import {
   solicitarPermissaoNotificacao,
-  escutarMensagens
+  escutarMensagens,
+  normalizeNotificationType,
+  NOTIFICATION_TYPES
 } from './notificationService'
 
 const API_BASE_URL = API_CONFIG.BASE_URL
@@ -33,6 +35,7 @@ function normalizeUser(data) {
     foto: data?.foto || '',
     dataNascimento: data?.dataNascimento || '',
     comorbidade: data?.comorbidade || '',
+    tipoNotificacao: normalizeNotificationType(data?.tipoNotificacao),
   }
 }
 
@@ -43,6 +46,7 @@ function saveUserSession(usuario) {
   sessionStorage.setItem('userName', usuario.nome)
   sessionStorage.setItem('userEmail', usuario.email)
   sessionStorage.setItem('userPhoto', usuario.foto || '')
+  sessionStorage.setItem('notificationType', normalizeNotificationType(usuario.tipoNotificacao))
 }
 
 function Widget({ className = '' }) {
@@ -79,6 +83,29 @@ function App() {
     escutarMensagens()
   }, [])
 
+  const ativarNotificacoesSistema = async (usuario) => {
+    if (normalizeNotificationType(usuario?.tipoNotificacao) !== NOTIFICATION_TYPES.SYSTEM) {
+      sessionStorage.removeItem('fcmToken')
+      return
+    }
+
+    const token = await solicitarPermissaoNotificacao()
+
+    if (token) {
+      sessionStorage.setItem('fcmToken', token)
+
+      await fetch(`${API_BASE_URL}/api/usuarios/${usuario.id}/fcm-token`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          token: token
+        })
+      })
+    }
+  }
+
   useEffect(() => {
     const checkRedirect = async () => {
       try {
@@ -108,30 +135,19 @@ function App() {
 
   const handleLogin = async (data) => {
     const usuario = normalizeUser(data)
+    const profileComplete = isProfileComplete(usuario)
 
     saveUserSession(usuario)
     setIsLoggedIn(true)
     setUserData(usuario)
-    setNeedsOnboarding(!isProfileComplete(usuario))
+    setNeedsOnboarding(!profileComplete)
 
-    const token = await solicitarPermissaoNotificacao()
-
-    if (token) {
-      sessionStorage.setItem('fcmToken', token)
-
-      await fetch(`${API_BASE_URL}/api/usuarios/${usuario.id}/fcm-token`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          token: token
-        })
-      })
+    if (profileComplete) {
+      await ativarNotificacoesSistema(usuario)
     }
   }
 
-  const handleCadastroSuccess = (data) => {
+  const handleCadastroSuccess = async (data) => {
     const usuario = normalizeUser(data)
 
     saveUserSession(usuario)
@@ -140,7 +156,7 @@ function App() {
     setNeedsOnboarding(true)
   }
 
-  const handleOnboardingComplete = (data) => {
+  const handleOnboardingComplete = async (data) => {
     const usuario = normalizeUser({
       ...userData,
       ...data
@@ -149,6 +165,8 @@ function App() {
     saveUserSession(usuario)
     setUserData(usuario)
     setNeedsOnboarding(false)
+
+    await ativarNotificacoesSistema(usuario)
   }
 
   const handleLogout = () => {

@@ -4,6 +4,98 @@ import { messaging } from "./firebase";
 const VAPID_KEY = "BOy6JXqZ8wfaZWLukevf-kfHvfOlEjGzssuP-sDFxRtAkTkypq0lQJYKk85A3RNd2SdFM0wXti4AElI5rges4H4";
 const DEFAULT_ICON = "/favicon.png";
 
+export const NOTIFICATION_TYPES = Object.freeze({
+  SYSTEM: "sistema",
+  BROWSER: "browser",
+});
+
+let notificationAudioContext = null;
+let browserSoundPrepared = false;
+
+export function normalizeNotificationType(type) {
+  return type === NOTIFICATION_TYPES.BROWSER
+    ? NOTIFICATION_TYPES.BROWSER
+    : NOTIFICATION_TYPES.SYSTEM;
+}
+
+export function getCurrentNotificationType() {
+  if (typeof window === "undefined") return NOTIFICATION_TYPES.SYSTEM;
+
+  try {
+    const storedUser = JSON.parse(sessionStorage.getItem("usuario") || "null");
+    return normalizeNotificationType(
+      sessionStorage.getItem("notificationType") || storedUser?.tipoNotificacao
+    );
+  } catch {
+    return normalizeNotificationType(sessionStorage.getItem("notificationType"));
+  }
+}
+
+function getAudioContext() {
+  if (typeof window === "undefined") return null;
+
+  const AudioContext = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContext) return null;
+
+  if (!notificationAudioContext) {
+    notificationAudioContext = new AudioContext();
+  }
+
+  return notificationAudioContext;
+}
+
+export function prepararSomNotificacaoBrowser() {
+  if (typeof window === "undefined" || browserSoundPrepared) return;
+
+  browserSoundPrepared = true;
+
+  const unlockAudio = () => {
+    const audioContext = getAudioContext();
+    if (audioContext?.state === "suspended") {
+      audioContext.resume().catch(() => {});
+    }
+
+    window.removeEventListener("pointerdown", unlockAudio);
+    window.removeEventListener("keydown", unlockAudio);
+  };
+
+  window.addEventListener("pointerdown", unlockAudio, { once: true });
+  window.addEventListener("keydown", unlockAudio, { once: true });
+}
+
+export async function tocarSomNotificacaoBrowser() {
+  try {
+    const audioContext = getAudioContext();
+    if (!audioContext) return false;
+
+    if (audioContext.state === "suspended") {
+      await audioContext.resume();
+    }
+
+    const start = audioContext.currentTime;
+    const gain = audioContext.createGain();
+    gain.gain.setValueAtTime(0.0001, start);
+    gain.gain.exponentialRampToValueAtTime(0.18, start + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, start + 1.15);
+    gain.connect(audioContext.destination);
+
+    [880, 660, 880].forEach((frequency, index) => {
+      const oscillator = audioContext.createOscillator();
+      const noteStart = start + index * 0.32;
+      oscillator.type = "sine";
+      oscillator.frequency.setValueAtTime(frequency, noteStart);
+      oscillator.connect(gain);
+      oscillator.start(noteStart);
+      oscillator.stop(noteStart + 0.22);
+    });
+
+    return true;
+  } catch (error) {
+    console.warn("Som de notificacao pelo browser bloqueado:", error);
+    return false;
+  }
+}
+
 export async function garantirPermissaoNotificacao() {
   if (typeof window === "undefined" || !("Notification" in window)) {
     console.warn("Notificacoes nao suportadas neste navegador");
@@ -89,7 +181,11 @@ export function escutarMensagens() {
     const title = payload.notification?.title || payload.data?.title || "PharmaLife";
     const body = payload.notification?.body || payload.data?.body || "";
 
-    if (Notification.permission === "granted") {
+    if (getCurrentNotificationType() === NOTIFICATION_TYPES.BROWSER) {
+      return;
+    }
+
+    if ("Notification" in window && Notification.permission === "granted") {
       const notification = new Notification(title, {
         body,
         icon: DEFAULT_ICON,

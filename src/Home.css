@@ -2159,6 +2159,69 @@ button .ui-widget {
   animation: slideInRight 0.3s ease-out;
 }
 
+.browser-reminder-alert {
+  position: fixed;
+  right: 1rem;
+  top: 1rem;
+  z-index: 1100;
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  width: min(420px, calc(100vw - 2rem));
+  padding: 14px;
+  background: #ffffff;
+  border: 1px solid rgba(26, 58, 107, 0.18);
+  border-left: 4px solid var(--pharma-success, #10b981);
+  border-radius: 8px;
+  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.16);
+  color: var(--pharma-text, #111827);
+  animation: slideInRight 0.3s ease-out;
+}
+
+.browser-reminder-alert__icon {
+  width: 38px;
+  min-width: 38px;
+  height: 38px;
+  margin: 0;
+  color: var(--pharma-success, #10b981);
+  background: rgba(16, 185, 129, 0.12);
+}
+
+.browser-reminder-alert__content {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.browser-reminder-alert__content strong {
+  color: var(--pharma-text, #111827);
+  font-size: 15px;
+  line-height: 1.25;
+}
+
+.browser-reminder-alert__content span {
+  color: var(--pharma-muted, #6b7280);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.browser-reminder-alert__close {
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--pharma-border, #e5e7eb);
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--pharma-primary, #1A3A6B);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.browser-reminder-alert__close:hover {
+  background: rgba(26, 58, 107, 0.07);
+}
+
 .dark-mode {
   background: linear-gradient(135deg, #1a202c 0%, #2d3748 100%);
 }
@@ -2175,6 +2238,26 @@ button .ui-widget {
 
 .dark-mode .card h3, .dark-mode .card h4 {
   color: #e2e8f0;
+}
+
+.dark-mode .browser-reminder-alert,
+.dark-mode .browser-reminder-alert__close {
+  background: #1f2937;
+  color: #e5e7eb;
+  border-color: rgba(148, 163, 184, 0.26);
+}
+
+.dark-mode .browser-reminder-alert__content strong {
+  color: #f8fafc;
+}
+
+.dark-mode .browser-reminder-alert__content span,
+.dark-mode .notification-mode-option small {
+  color: #cbd5e1;
+}
+
+.dark-mode .notification-mode-option strong {
+  color: #f8fafc;
 }
 
 .dark-mode .main-content {
@@ -3183,6 +3266,57 @@ button .ui-widget { color: currentColor; }
 .configuracoes input[type="checkbox"]::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: transform 0.18s ease; }
 .configuracoes input[type="checkbox"]:checked { background: var(--pharma-success); }
 .configuracoes input[type="checkbox"]:checked::after { transform: translateX(16px); }
+.notification-mode-options {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 12px 16px;
+  border: 0;
+  border-bottom: 1px solid rgba(26,58,107,0.1);
+}
+
+.notification-mode-options legend {
+  margin-bottom: 2px;
+  color: var(--pharma-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.configuracoes .card .notification-mode-option {
+  justify-content: flex-start;
+  gap: 10px;
+  margin: 0;
+  padding: 10px;
+  border: 1px solid var(--pharma-border);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.configuracoes .card .notification-mode-option.selected {
+  border-color: var(--pharma-primary);
+  background: rgba(26, 58, 107, 0.06);
+}
+
+.notification-mode-option input[type="radio"] {
+  margin: 3px 0 0;
+  accent-color: var(--pharma-primary);
+}
+
+.notification-mode-option span {
+  display: grid;
+  gap: 3px;
+}
+
+.notification-mode-option strong {
+  color: var(--pharma-text);
+  font-size: 13px;
+}
+
+.notification-mode-option small {
+  color: var(--pharma-muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
 .help-hero { display: block; padding: 0; background: transparent; border: 0; box-shadow: none; }
 .help-breadcrumb, .help-eyebrow, .help-hero__visual { display: none; }
 .help-title-row { margin-bottom: 16px; }

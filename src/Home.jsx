@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import './Home.css'
 import './Adicionar.css'
 import './Accessibility.css'
@@ -7,12 +7,18 @@ import pharmalifeLogo from './assets/pharmalife-logo.png'
 import API_CONFIG from './config'
 import {
   garantirPermissaoNotificacao,
-  mostrarNotificacaoLocal
+  mostrarNotificacaoLocal,
+  normalizeNotificationType,
+  NOTIFICATION_TYPES,
+  prepararSomNotificacaoBrowser,
+  tocarSomNotificacaoBrowser,
+  solicitarPermissaoNotificacao
 } from './notificationService'
 
 
 const API_BASE_URL = API_CONFIG.BASE_URL
 const REMINDER_NOTIFICATION_STORAGE_KEY = 'lembretesNotificados'
+const MEDICATION_NOTIFICATION_STORAGE_KEY = 'medicamentosNotificados'
 const REMINDER_NOTIFICATION_CHECK_INTERVAL_MS = 15 * 1000
 const REMINDER_NOTIFICATION_GRACE_MS = 60 * 60 * 1000
 
@@ -213,23 +219,40 @@ const formatReminderNotificationTime = (lembrete) => {
   }).format(new Date(timestamp))
 }
 
-const getStoredReminderNotifications = () => {
+const getStoredNotificationKeys = (storageKey) => {
   try {
-    const stored = JSON.parse(localStorage.getItem(REMINDER_NOTIFICATION_STORAGE_KEY) || '[]')
+    const stored = JSON.parse(localStorage.getItem(storageKey) || '[]')
     return Array.isArray(stored) ? stored.map(String) : []
   } catch {
     return []
   }
 }
 
-const markReminderAsNotified = (key) => {
-  const stored = getStoredReminderNotifications()
+const getStoredReminderNotifications = () => getStoredNotificationKeys(REMINDER_NOTIFICATION_STORAGE_KEY)
+
+const getStoredMedicationNotifications = () => getStoredNotificationKeys(MEDICATION_NOTIFICATION_STORAGE_KEY)
+
+const markNotificationAsSent = (storageKey, key) => {
+  const stored = getStoredNotificationKeys(storageKey)
   if (stored.includes(key)) return
 
   localStorage.setItem(
-    REMINDER_NOTIFICATION_STORAGE_KEY,
+    storageKey,
     JSON.stringify([...stored, key].slice(-300))
   )
+}
+
+const markReminderAsNotified = (key) => {
+  markNotificationAsSent(REMINDER_NOTIFICATION_STORAGE_KEY, key)
+}
+
+const markMedicationAsNotified = (key) => {
+  markNotificationAsSent(MEDICATION_NOTIFICATION_STORAGE_KEY, key)
+}
+
+const getLocalDateKey = (date = new Date()) => {
+  const pad = (value) => String(value).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
 }
 
 function TablerIcon({ name }) {
@@ -315,6 +338,10 @@ function Home({ onLogout, userData }) {
     foto: ''
   })
   const [darkMode, setDarkMode] = useState(false)
+  const [notificationType, setNotificationType] = useState(() => {
+    return normalizeNotificationType(userData?.tipoNotificacao || sessionStorage.getItem('notificationType'))
+  })
+  const [browserNotification, setBrowserNotification] = useState(null)
   const [accessibilityLevel, setAccessibilityLevel] = useState(() => {
     const savedLevel = localStorage.getItem('accessibilityLevel')
     if (['normal', 'medium', 'large', 'xlarge'].includes(savedLevel)) {
@@ -383,6 +410,40 @@ function Home({ onLogout, userData }) {
     setShowToast(true)
     setTimeout(() => setShowToast(false), 3000)
   }
+
+  const showBrowserReminderNotification = ({ title, body, notificationKey }) => {
+    tocarSomNotificacaoBrowser()
+    setBrowserNotification({
+      id: `${Date.now()}-${notificationKey || title}`,
+      title,
+      body
+    })
+  }
+
+  useEffect(() => {
+    const tipoNotificacao = normalizeNotificationType(
+      userData?.tipoNotificacao || sessionStorage.getItem('notificationType')
+    )
+    setNotificationType(tipoNotificacao)
+    sessionStorage.setItem('notificationType', tipoNotificacao)
+  }, [userData?.tipoNotificacao])
+
+  useEffect(() => {
+    if (notificationType !== NOTIFICATION_TYPES.BROWSER) return undefined
+
+    prepararSomNotificacaoBrowser()
+    return undefined
+  }, [notificationType])
+
+  useEffect(() => {
+    if (!browserNotification) return undefined
+
+    const timeoutId = window.setTimeout(() => {
+      setBrowserNotification(null)
+    }, 18000)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [browserNotification])
 
   const getApiErrorMessage = async (response, fallback = 'Erro ao comunicar com o servidor') => {
     const text = await response.text()
@@ -466,6 +527,26 @@ function Home({ onLogout, userData }) {
     }).format(date)
   }
 
+  const getMedicationNotificationTimestamp = (med) => {
+    if (!med?.horario) return null
+
+    const [hour = '0', minute = '0'] = String(med.horario).split(':')
+    const date = new Date()
+    date.setHours(Number(hour), Number(minute), 0, 0)
+
+    const timestamp = date.getTime()
+    return Number.isNaN(timestamp) ? null : timestamp
+  }
+
+  const getMedicationNotificationKey = (med) => {
+    return [
+      sessionStorage.getItem('userId') || sessionStorage.getItem('userName') || 'usuario',
+      med?.id || med?.nome || '',
+      getLocalDateKey(),
+      med?.horario || ''
+    ].map(String).join('|')
+  }
+
   const getSortedLembretes = () => {
     if (!Array.isArray(lembretes)) return []
 
@@ -510,9 +591,21 @@ function Home({ onLogout, userData }) {
         const descricao = typeof lembrete?.descricao === 'string' ? lembrete.descricao.trim() : ''
         const horario = formatReminderNotificationTime(lembrete)
 
+        const title = `Lembrete: ${titulo}`
+        const body = descricao || `Horario marcado para ${horario}`
+
+        if (notificationType === NOTIFICATION_TYPES.BROWSER) {
+          showBrowserReminderNotification({
+            title,
+            body,
+            notificationKey
+          })
+          return
+        }
+
         mostrarNotificacaoLocal({
-          title: `Lembrete: ${titulo}`,
-          body: descricao || `Horario marcado para ${horario}`,
+          title,
+          body,
           tag: `pharmalife-lembrete-${notificationKey}`
         })
       })
@@ -522,7 +615,7 @@ function Home({ onLogout, userData }) {
     const intervalId = window.setInterval(checkDueReminders, REMINDER_NOTIFICATION_CHECK_INTERVAL_MS)
 
     return () => window.clearInterval(intervalId)
-  }, [lembretes])
+  }, [lembretes, notificationType])
 
   const isSameDay = (left, right) => {
     return left.getFullYear() === right.getFullYear()
@@ -599,6 +692,68 @@ function Home({ onLogout, userData }) {
     } else {
       localStorage.removeItem('colorVisionMode')
       showToastMessage('Modo para daltonismo desativado')
+    }
+  }
+
+  const updateNotificationType = async (type) => {
+    const tipoNotificacao = normalizeNotificationType(type)
+    const previousType = notificationType
+    const userId = sessionStorage.getItem('userId')
+
+    setNotificationType(tipoNotificacao)
+    sessionStorage.setItem('notificationType', tipoNotificacao)
+    try {
+      const storedUser = JSON.parse(sessionStorage.getItem('usuario') || 'null')
+      if (storedUser) {
+        sessionStorage.setItem('usuario', JSON.stringify({
+          ...storedUser,
+          tipoNotificacao
+        }))
+      }
+    } catch {
+      // Mantem a configuracao principal em notificationType.
+    }
+
+    try {
+      if (userId) {
+        const response = await fetch(`${API_BASE_URL}/api/usuarios/${userId}/tipo-notificacao`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tipoNotificacao })
+        })
+
+        if (!response.ok) {
+          throw new Error(await getApiErrorMessage(response, 'Erro ao salvar tipo de notificacao'))
+        }
+      }
+
+      if (tipoNotificacao === NOTIFICATION_TYPES.SYSTEM) {
+        const token = await solicitarPermissaoNotificacao()
+
+        if (token && userId) {
+          sessionStorage.setItem('fcmToken', token)
+          await fetch(`${API_BASE_URL}/api/usuarios/${userId}/fcm-token`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token })
+          })
+        }
+
+        showToastMessage(
+          token
+            ? 'Notificacoes pelo sistema ativadas.'
+            : 'Modo sistema salvo, mas a permissao de notificacao nao foi ativada.'
+        )
+        return
+      }
+
+      sessionStorage.removeItem('fcmToken')
+      showToastMessage('Notificacao pelo browser ativada.')
+    } catch (error) {
+      console.error('Erro ao atualizar tipo de notificacao:', error)
+      setNotificationType(previousType)
+      sessionStorage.setItem('notificationType', previousType)
+      showToastMessage(error.message || 'Erro ao salvar tipo de notificacao.')
     }
   }
 
@@ -1060,13 +1215,73 @@ function Home({ onLogout, userData }) {
   }, [])
   
   // Medicamento do backend: { id, nome, descricao (dosagem), tipo (frequencia), complemento, agenda: { horario } }
-  const agendaMedicamentos = Array.isArray(medicamentos) ? medicamentos.filter(Boolean).map(med => ({
+  const agendaMedicamentos = useMemo(() => Array.isArray(medicamentos) ? medicamentos.filter(Boolean).map(med => ({
     ...med,
     dosagem: med.descricao || med.dosagem || med.agenda?.dosagem || '',
     horario: formatHorario(med.agenda?.horario || med.horario || ''),
     frequencia: normalizeFrequency(med.tipo || med.frequencia || ''),
     status: med.statusMedicamento || 'ATIVO'
-  })) : []
+  })) : [], [medicamentos])
+
+  useEffect(() => {
+    if (notificationType !== NOTIFICATION_TYPES.BROWSER) return undefined
+    if (!Array.isArray(agendaMedicamentos) || agendaMedicamentos.length === 0) return undefined
+
+    const checkDueMedications = () => {
+      const now = Date.now()
+      const today = new Date()
+      const hasMedicationActionToday = (med) => {
+        if (!Array.isArray(historicoCompleto)) return false
+
+        return historicoCompleto.some((item) => {
+          const itemMedId = item?.medicamento?.id || item?.medicamentoId
+          if (itemMedId !== med.id) return false
+
+          const itemDate = item?.dataConfirmacao
+            ? new Date(item.dataConfirmacao)
+            : item?.dataHoraIgnorado
+              ? new Date(item.dataHoraIgnorado)
+              : null
+
+          if (!itemDate || Number.isNaN(itemDate.getTime())) return false
+          if (!['TOMADO', 'CONFIRMADO', 'tomado', 'IGNORADO'].includes(item.status)) return false
+
+          return itemDate.getFullYear() === today.getFullYear()
+            && itemDate.getMonth() === today.getMonth()
+            && itemDate.getDate() === today.getDate()
+        })
+      }
+
+      agendaMedicamentos.forEach((med) => {
+        if (!med || med.status === 'INATIVO') return
+        if (!med.horario) return
+
+        if (hasMedicationActionToday(med)) return
+
+        const medicationTime = getMedicationNotificationTimestamp(med)
+        if (!medicationTime) return
+
+        const delay = now - medicationTime
+        if (delay < 0 || delay > REMINDER_NOTIFICATION_GRACE_MS) return
+
+        const notificationKey = getMedicationNotificationKey(med)
+        if (getStoredMedicationNotifications().includes(notificationKey)) return
+
+        markMedicationAsNotified(notificationKey)
+
+        showBrowserReminderNotification({
+          title: 'Hora do medicamento!',
+          body: `Esta na hora de tomar ${med.nome}${med.dosagem ? ` - ${med.dosagem}` : ''}.`,
+          notificationKey
+        })
+      })
+    }
+
+    checkDueMedications()
+    const intervalId = window.setInterval(checkDueMedications, REMINDER_NOTIFICATION_CHECK_INTERVAL_MS)
+
+    return () => window.clearInterval(intervalId)
+  }, [agendaMedicamentos, historicoCompleto, notificationType])
 
   const renderDashboard = () => {
     const dailyStats = getDailyMedicationStats()
@@ -1345,13 +1560,15 @@ function Home({ onLogout, userData }) {
   const handleAddLembrete = async (e) => {
     e.preventDefault()
     if (novoLembrete.titulo && novoLembrete.data && novoLembrete.horario) {
-      let notificationPermission = 'default'
+      let notificationPermission = notificationType === NOTIFICATION_TYPES.BROWSER ? 'browser' : 'default'
 
-      try {
-        notificationPermission = await garantirPermissaoNotificacao()
-      } catch (error) {
-        console.error('Erro ao solicitar permissao de notificacao:', error)
-        notificationPermission = 'denied'
+      if (notificationType === NOTIFICATION_TYPES.SYSTEM) {
+        try {
+          notificationPermission = await garantirPermissaoNotificacao()
+        } catch (error) {
+          console.error('Erro ao solicitar permissao de notificacao:', error)
+          notificationPermission = 'denied'
+        }
       }
 
       const lembretesExistentes = JSON.parse(localStorage.getItem('lembretes') || '[]')
@@ -1364,7 +1581,9 @@ function Home({ onLogout, userData }) {
       localStorage.setItem('lembretes', JSON.stringify(lembretesExistentes))
       
       showToastMessage(
-        notificationPermission === 'granted'
+        notificationPermission === 'browser'
+          ? 'Lembrete adicionado com notificacao pelo browser.'
+          : notificationPermission === 'granted'
           ? 'Lembrete adicionado com sucesso!'
           : 'Lembrete adicionado, mas as notificacoes nao estao ativadas.'
       )
@@ -1488,6 +1707,9 @@ setPerfil({
           // Atualizar sessionStorage com dados do backend
           sessionStorage.setItem('userName', usuario.nome)
           sessionStorage.setItem('userEmail', usuario.email)
+          const tipoNotificacao = normalizeNotificationType(usuario.tipoNotificacao)
+          sessionStorage.setItem('notificationType', tipoNotificacao)
+          setNotificationType(tipoNotificacao)
           return
         }
       }
@@ -2422,12 +2644,37 @@ setPerfil({
           <h4>Notificações</h4>
           <label>
             <span>Lembrete de medicamentos</span>
-            <input type="checkbox" defaultChecked />
+            <input type="checkbox" checked readOnly />
           </label>
-          <label>
-            <span>Notificações push</span>
-            <input type="checkbox" defaultChecked />
-          </label>
+          <fieldset className="notification-mode-options">
+            <legend>Tipo de notificacao</legend>
+            <label className={`notification-mode-option ${notificationType === NOTIFICATION_TYPES.SYSTEM ? 'selected' : ''}`}>
+              <input
+                type="radio"
+                name="notificationType"
+                value={NOTIFICATION_TYPES.SYSTEM}
+                checked={notificationType === NOTIFICATION_TYPES.SYSTEM}
+                onChange={() => updateNotificationType(NOTIFICATION_TYPES.SYSTEM)}
+              />
+              <span>
+                <strong>Notificacoes pelo sistema</strong>
+                <small>Usa as notificacoes nativas do computador.</small>
+              </span>
+            </label>
+            <label className={`notification-mode-option ${notificationType === NOTIFICATION_TYPES.BROWSER ? 'selected' : ''}`}>
+              <input
+                type="radio"
+                name="notificationType"
+                value={NOTIFICATION_TYPES.BROWSER}
+                checked={notificationType === NOTIFICATION_TYPES.BROWSER}
+                onChange={() => updateNotificationType(NOTIFICATION_TYPES.BROWSER)}
+              />
+              <span>
+                <strong>Notificacao pelo Browser</strong>
+                <small>Toca som e mostra aviso dentro do site.</small>
+              </span>
+            </label>
+          </fieldset>
           <label>
             <span>Modo escuro</span>
             <input 
@@ -2915,6 +3162,23 @@ setPerfil({
         {showToast && (
           <div className="toast">
             {toastMessage}
+          </div>
+        )}
+        {browserNotification && (
+          <div className="browser-reminder-alert" role="status" aria-live="assertive">
+            <Widget type="bell" className="browser-reminder-alert__icon" />
+            <div className="browser-reminder-alert__content">
+              <strong>{browserNotification.title}</strong>
+              <span>{browserNotification.body}</span>
+            </div>
+            <button
+              type="button"
+              className="browser-reminder-alert__close"
+              onClick={() => setBrowserNotification(null)}
+              title="Fechar notificacao"
+            >
+              Fechar
+            </button>
           </div>
         )}
         
