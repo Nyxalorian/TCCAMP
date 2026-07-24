@@ -2340,32 +2340,63 @@ setPerfil({
       return scheduledDate && scheduledDate < new Date()
     }
 
-    const hasHistoricoToday = (med) => {
-      if (!med) return false
-      const today = new Date()
+    const hasHistoricoOnDay = (med, day) => {
+      if (!med || !day) return false
       return Array.isArray(historicoCompleto) && historicoCompleto.some((item) => {
         const itemMedId = item?.medicamento?.id || item?.medicamentoId
         const itemDate = getHistoricoDate(item)
-        return itemMedId === med.id && itemDate && isSameDay(itemDate, today)
+        return String(itemMedId) === String(med.id) && itemDate && isSameDay(itemDate, day)
       })
     }
 
     const missedFromAgenda = agendaMedicamentos
-      .filter((med) => {
-        if (!med) return false
-        if (!med.horario || med.status === 'INATIVO') return false
-        const scheduledDate = getHistoricoDate({ horario: med.horario })
-        return scheduledDate && scheduledDate < new Date() && !hasHistoricoToday(med)
+      .filter((med) => med?.horario && med.status !== 'INATIVO')
+      .flatMap((med) => {
+        const now = new Date()
+        const agendaStart = med.agenda?.dataInicio ? new Date(med.agenda.dataInicio) : null
+        const agendaEnd = med.agenda?.dataFim ? new Date(med.agenda.dataFim) : null
+        const fallbackDays = historyFilter === 'week' ? 6 : historyFilter === 'month' ? 29 : 365
+        const rangeStart = new Date(now)
+        rangeStart.setDate(rangeStart.getDate() - fallbackDays)
+        rangeStart.setHours(0, 0, 0, 0)
+
+        if (agendaStart && !Number.isNaN(agendaStart.getTime()) && agendaStart > rangeStart) {
+          rangeStart.setTime(agendaStart.getTime())
+          rangeStart.setHours(0, 0, 0, 0)
+        }
+
+        const rangeEnd = new Date(now)
+        if (agendaEnd && !Number.isNaN(agendaEnd.getTime()) && agendaEnd < rangeEnd) {
+          rangeEnd.setTime(agendaEnd.getTime())
+        }
+
+        const [hour = '0', minute = '0'] = String(med.horario).split(':')
+        const missed = []
+        const day = new Date(rangeStart)
+
+        while (day <= rangeEnd) {
+          const scheduledDate = new Date(day)
+          scheduledDate.setHours(Number(hour), Number(minute), 0, 0)
+
+          if (scheduledDate < now && !hasHistoricoOnDay(med, scheduledDate)) {
+            missed.push({
+              id: `missed-${med.id}-${scheduledDate.toISOString().slice(0, 10)}`,
+              medicamentoId: med.id,
+              nome: med.nome,
+              dosagem: med.dosagem,
+              horario: med.horario,
+              dataHora: scheduledDate.toISOString(),
+              status: 'PERDIDO',
+              virtualMissed: true,
+              observacoes: 'Horario passou e o medicamento nao foi marcado como tomado.'
+            })
+          }
+
+          day.setDate(day.getDate() + 1)
+        }
+
+        return missed
       })
-      .map((med) => ({
-        id: `missed-${med.id}`,
-        nome: med.nome,
-        dosagem: med.dosagem,
-        horario: med.horario,
-        status: 'PERDIDO',
-        virtualMissed: true,
-        observacoes: 'Horario passou e o medicamento nao foi marcado como tomado.'
-      }))
 
     const historicoComPerdidos = [
       ...(Array.isArray(historicoCompleto) ? historicoCompleto.filter(Boolean) : []).map((item) => ({
@@ -2405,6 +2436,7 @@ setPerfil({
               const dataConfirmacao = getHistoricoDate(item)
               const statusVisual = item.statusVisual || item.status
               const statusLabel = isTakenStatus(statusVisual) ? 'TOMADO' : statusVisual
+              const statusText = statusLabel === 'PERDIDO' ? 'NÃO TOMADO' : statusLabel
               const hoje = new Date()
               const ontem = new Date(hoje); ontem.setDate(hoje.getDate() - 1)
               let dataTexto = dataConfirmacao ? dataConfirmacao.toLocaleDateString('pt-BR') : '—'
@@ -2422,14 +2454,14 @@ setPerfil({
                     </div>
                     <div className="historico-info">
                       <h4>{item.nome} {item.dosagem}</h4>
-                      <span className="historico-acao">{statusLabel}{item.duracao ? ` · ${item.duracao}` : ' · 1 semana'}</span>
+                      <span className="historico-acao">{statusText}{item.duracao ? ` · ${item.duracao}` : ' · 1 semana'}</span>
                     </div>
                     <div className="historico-time">
                       <span>{dataTexto}</span>
                       {dataConfirmacao && <span>{dataConfirmacao.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>}
                     </div>
                   </div>
-                  {item.status === 'PENDENTE' && !item.virtualMissed && (
+                  {statusVisual === 'PENDENTE' && !item.virtualMissed && (
                     <div className="pending-actions">
                       <button onClick={() => confirmarHistorico(item.id)} className="btn-status btn-status--confirm"><Widget type="checklist" /> Confirmar</button>
                       <button onClick={() => abrirModalIgnorar({ historicoId: item.id, med: item })} className="btn-status btn-status--ignore"><Widget type="delete" /> Ignorar</button>
