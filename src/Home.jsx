@@ -955,7 +955,7 @@ function Home({ onLogout, userData }) {
     const faqs = [
       {
         question: 'Como cadastro um medicamento?',
-        answer: 'Acesse Novo Medicamento, preencha nome, dosagem, horário e frequência. Depois salve para aparecer na Agenda.'
+        answer: 'Acesse Adicionar, escolha Medicamento, preencha nome, dosagem, horário e frequência. Depois salve para aparecer na Agenda.'
       },
       {
         question: 'Como marco um medicamento como tomado?',
@@ -963,7 +963,7 @@ function Home({ onLogout, userData }) {
       },
       {
         question: 'Onde vejo meu histórico?',
-        answer: 'Entre em Histórico para consultar medicamentos confirmados, pendentes ou ignorados.'
+        answer: 'Entre em Histórico para consultar medicamentos tomados, pendentes, não tomados ou ignorados.'
       },
       {
         question: 'Como aumento o tamanho das letras?',
@@ -1057,7 +1057,15 @@ function Home({ onLogout, userData }) {
             <span>Onboarding</span>
             <strong>{completedOnboardingSteps} de {onboardingSteps.length} passos essenciais</strong>
           </div>
-          <div className="help-progress__bar">
+          <div
+            className="help-progress__bar"
+            role="progressbar"
+            aria-label="Progresso dos primeiros passos"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            aria-valuenow={onboardingPercent}
+            aria-valuetext={`${completedOnboardingSteps} de ${onboardingSteps.length} passos concluídos`}
+          >
             <span style={{ width: `${onboardingPercent}%` }} />
           </div>
           <ul className="help-progress__steps" aria-label="Checklist de progresso">
@@ -1079,7 +1087,7 @@ function Home({ onLogout, userData }) {
           <div className="help-main">
             <div className="help-topic-grid" aria-label="Tópicos de ajuda">
               {filteredTopics.length > 0 ? filteredTopics.map((topic) => (
-                <article className="help-topic-card" key={topic.title} tabIndex="0">
+                <article className="help-topic-card" key={topic.title}>
                   <span className="help-topic-icon" aria-hidden="true"><TablerIcon name={topic.icon} /></span>
                   <h3>{topic.title}</h3>
                   <p>{topic.text}</p>
@@ -1112,7 +1120,7 @@ function Home({ onLogout, userData }) {
                   <span>2</span>
                   <div>
                     <h4>Cadastre medicamentos</h4>
-                    <p>Informe dose, horário e frequência na área Novo Medicamento.</p>
+                    <p>Acesse Adicionar, escolha Medicamento e informe dose, horário e frequência.</p>
                   </div>
                 </li>
                 <li>
