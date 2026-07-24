@@ -3574,6 +3574,102 @@ button .ui-widget { color: currentColor; }
   width: 100%;
 }
 
+.help-search-results {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  display: grid;
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 6px;
+  border: 1px solid var(--pharma-border);
+  border-radius: 10px;
+  background: #ffffff;
+  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.16);
+}
+
+.help-search-results button {
+  display: grid;
+  gap: 3px;
+  width: 100%;
+  padding: 11px 12px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--pharma-text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.help-search-results button:hover,
+.help-search-results button:focus-visible {
+  outline: none;
+  background: var(--pharma-soft-blue);
+}
+
+.help-search-results button strong {
+  color: var(--pharma-primary);
+  font-size: 14px;
+}
+
+.help-search-results button span,
+.help-search-results p {
+  margin: 0;
+  color: var(--pharma-muted);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.help-search-results p {
+  padding: 12px;
+}
+
+.help-navigation-highlight {
+  position: relative;
+  z-index: 1;
+  animation: helpNavigationHighlight 2.4s ease-out;
+}
+
+@keyframes helpNavigationHighlight {
+  0%,
+  25% {
+    outline: 4px solid rgba(37, 99, 235, 0.5);
+    outline-offset: 5px;
+    box-shadow: 0 0 0 10px rgba(37, 99, 235, 0.13);
+  }
+  100% {
+    outline: 4px solid transparent;
+    outline-offset: 5px;
+    box-shadow: none;
+  }
+}
+
+.home-container.dark-mode .help-search-results {
+  border-color: #334155;
+  background: #111827;
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.38);
+}
+
+.home-container.dark-mode .help-search-results button {
+  color: #f8fafc;
+}
+
+.home-container.dark-mode .help-search-results button:hover,
+.home-container.dark-mode .help-search-results button:focus-visible {
+  background: #1f2937;
+}
+
+.home-container.dark-mode .help-search-results button strong {
+  color: #93c5fd;
+}
+
+.home-container.dark-mode .help-search-results button span,
+.home-container.dark-mode .help-search-results p {
+  color: #cbd5e1;
+}
+
 .help-topic-card {
   cursor: default;
   transition: background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;

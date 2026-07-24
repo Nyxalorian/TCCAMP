@@ -944,6 +944,78 @@ function Home({ onLogout, userData }) {
   }
   
   const renderAjuda = () => {
+    const normalizeHelpSearch = (value) => value
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+
+    const helpDestinations = [
+      {
+        label: 'Adesão',
+        description: 'Veja o percentual de adesão aos medicamentos.',
+        section: 'dashboard',
+        targetId: 'help-target-adesao',
+        keywords: 'adesao porcentagem resumo pagina inicial'
+      },
+      {
+        label: 'Agenda',
+        description: 'Consulte medicamentos e lembretes cadastrados.',
+        section: 'agenda',
+        targetId: 'help-target-agenda',
+        keywords: 'agenda horarios medicamentos lembretes'
+      },
+      {
+        label: 'Histórico',
+        description: 'Consulte medicamentos tomados, pendentes e não tomados.',
+        section: 'historico',
+        targetId: 'help-target-historico',
+        keywords: 'historico tomado pendente perdido nao tomado'
+      },
+      {
+        label: 'Adicionar medicamento',
+        description: 'Abra o formulário de cadastro de medicamento.',
+        section: 'adicionar-medicamento',
+        targetId: 'help-target-adicionar-medicamento',
+        keywords: 'adicionar cadastrar novo medicamento remedio'
+      },
+      {
+        label: 'Adicionar lembrete',
+        description: 'Abra o formulário de cadastro de lembrete.',
+        section: 'adicionar-lembrete',
+        targetId: 'help-target-adicionar-lembrete',
+        keywords: 'adicionar cadastrar novo lembrete aviso'
+      },
+      {
+        label: 'Configurações',
+        description: 'Ajuste notificações, acessibilidade e dados da conta.',
+        section: 'configuracoes',
+        targetId: 'help-target-configuracoes',
+        keywords: 'configuracoes notificacoes acessibilidade conta senha perfil modo escuro'
+      }
+    ]
+
+    const normalizedHelpSearch = normalizeHelpSearch(helpSearchTerm.trim())
+    const matchingDestinations = normalizedHelpSearch
+      ? helpDestinations.filter((destination) =>
+          normalizeHelpSearch(`${destination.label} ${destination.description} ${destination.keywords}`)
+            .includes(normalizedHelpSearch)
+        )
+      : []
+
+    const navigateToHelpDestination = (destination) => {
+      setHelpSearchTerm('')
+      setActiveSection(destination.section)
+
+      window.setTimeout(() => {
+        const target = document.getElementById(destination.targetId)
+        if (!target) return
+        target.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        target.classList.remove('help-navigation-highlight')
+        window.requestAnimationFrame(() => target.classList.add('help-navigation-highlight'))
+        window.setTimeout(() => target.classList.remove('help-navigation-highlight'), 2400)
+      }, 100)
+    }
+
     const helpTopics = [
       { icon: 'compass', title: 'Primeiros passos', text: 'Entrar, entender o painel e localizar as áreas principais.' },
       { icon: 'pill', title: 'Gerenciar medicamentos', text: 'Cadastrar, revisar horários e confirmar tomadas.' },
@@ -971,13 +1043,6 @@ function Home({ onLogout, userData }) {
       }
     ]
 
-    const searchText = helpSearchTerm.trim().toLowerCase()
-    const filteredTopics = searchText
-      ? helpTopics.filter(topic => `${topic.title} ${topic.text}`.toLowerCase().includes(searchText))
-      : helpTopics
-    const filteredFaqs = searchText
-      ? faqs.filter(faq => `${faq.question} ${faq.answer}`.toLowerCase().includes(searchText))
-      : faqs
     const historicoBackend = Array.isArray(historicoCompleto) ? historicoCompleto : []
     const medicamentosBackend = Array.isArray(medicamentos) ? medicamentos : []
     const lembretesUsuario = Array.isArray(lembretes) ? lembretes : []
@@ -1028,16 +1093,44 @@ function Home({ onLogout, userData }) {
               Guia rápido e acessível para cadastrar medicamentos, acompanhar sua rotina e ajustar sua conta.
             </p>
 
-            <label className="help-search">
-              <span className="sr-only">Buscar tópico de ajuda</span>
-              <span aria-hidden="true">Buscar</span>
+            <div className="help-search">
+              <label className="sr-only" htmlFor="help-site-search">Buscar uma área do aplicativo</label>
               <input
+                id="help-site-search"
                 type="search"
-                placeholder="Busque por agenda, histórico, senha..."
+                placeholder="Busque por adesão, agenda, histórico..."
                 value={helpSearchTerm}
                 onChange={(e) => setHelpSearchTerm(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && matchingDestinations.length > 0) {
+                    e.preventDefault()
+                    navigateToHelpDestination(matchingDestinations[0])
+                  }
+                }}
+                role="combobox"
+                aria-expanded={normalizedHelpSearch.length > 0}
+                aria-controls="help-site-search-results"
+                aria-autocomplete="list"
               />
-            </label>
+              {normalizedHelpSearch && (
+                <div id="help-site-search-results" className="help-search-results" role="listbox">
+                  {matchingDestinations.length > 0 ? matchingDestinations.map((destination) => (
+                    <button
+                      key={destination.label}
+                      type="button"
+                      role="option"
+                      aria-selected="false"
+                      onClick={() => navigateToHelpDestination(destination)}
+                    >
+                      <strong>{destination.label}</strong>
+                      <span>{destination.description}</span>
+                    </button>
+                  )) : (
+                    <p>Nenhuma área encontrada.</p>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="help-hero__visual" aria-hidden="true">
@@ -1086,17 +1179,13 @@ function Home({ onLogout, userData }) {
         <div className="help-layout">
           <div className="help-main">
             <div className="help-topic-grid" aria-label="Tópicos de ajuda">
-              {filteredTopics.length > 0 ? filteredTopics.map((topic) => (
+              {helpTopics.map((topic) => (
                 <article className="help-topic-card" key={topic.title}>
                   <span className="help-topic-icon" aria-hidden="true"><TablerIcon name={topic.icon} /></span>
                   <h3>{topic.title}</h3>
                   <p>{topic.text}</p>
                 </article>
-              )) : (
-                <div className="help-empty-state" role="status">
-                  Nenhum tópico encontrado. Tente buscar por agenda, senha, histórico ou acessibilidade.
-                </div>
-              )}
+              ))}
             </div>
 
             <article className="help-panel">
@@ -1143,16 +1232,12 @@ function Home({ onLogout, userData }) {
               </div>
 
               <div className="help-faq-list">
-                {filteredFaqs.length > 0 ? filteredFaqs.map((faq) => (
+                {faqs.map((faq) => (
                   <details className="help-faq" key={faq.question}>
                     <summary>{faq.question}</summary>
                     <p>{faq.answer}</p>
                   </details>
-                )) : (
-                  <div className="help-empty-state" role="status">
-                    Nenhuma pergunta encontrada para esta busca.
-                  </div>
-                )}
+                ))}
               </div>
             </article>
           </div>
@@ -1369,7 +1454,7 @@ function Home({ onLogout, userData }) {
             <span>Pendentes</span>
             <strong>{dailyStats.pendentes}</strong>
           </div>
-          <div className="home-summary__item">
+          <div className="home-summary__item" id="help-target-adesao">
             <span>Adesão</span>
             <strong>{adesao}%</strong>
           </div>
@@ -1961,7 +2046,7 @@ setPerfil({
     )
     return (
       <>
-        <h2 className="section-title">Agenda</h2>
+        <h2 className="section-title" id="help-target-agenda">Agenda</h2>
         <div className="search-container">
           <input
             type="text"
@@ -2067,7 +2152,7 @@ setPerfil({
   }
 
   const renderMedicamentoForm = () => (
-    <div className="add-card medicamento-card add-card--single">
+    <div className="add-card medicamento-card add-card--single" id="help-target-adicionar-medicamento">
       <div className="form-modern">
         <div className="add-form-heading">
           <Widget type="pill" className="add-form-heading__icon" />
@@ -2171,7 +2256,7 @@ setPerfil({
   )
 
   const renderLembreteForm = () => (
-    <div className="add-card lembrete-card add-card--single">
+    <div className="add-card lembrete-card add-card--single" id="help-target-adicionar-lembrete">
       <div className="form-modern">
         <div className="add-form-heading">
           <Widget type="bell" className="add-form-heading__icon" />
@@ -2427,7 +2512,7 @@ setPerfil({
     })
     return (
       <>
-        <h2 className="section-title">Histórico de Medicamentos</h2>
+        <h2 className="section-title" id="help-target-historico">Histórico de Medicamentos</h2>
         <div className="history-tabs" aria-label="Filtrar histórico por período">
           <button className={historyFilter === 'week' ? 'active' : ''} onClick={() => setHistoryFilter('week')}>Esta semana</button>
           <button className={historyFilter === 'month' ? 'active' : ''} onClick={() => setHistoryFilter('month')}>Este mês</button>
@@ -2699,7 +2784,7 @@ setPerfil({
 
   const renderConfiguracoes = () => (
     <>
-      <h2 className="section-title">Configurações</h2>
+      <h2 className="section-title" id="help-target-configuracoes">Configurações</h2>
       <div className="configuracoes">
         <div className="card">
 
