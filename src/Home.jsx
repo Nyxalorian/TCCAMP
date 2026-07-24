@@ -1935,17 +1935,10 @@ setPerfil({
           />
           <button 
             className="btn-add-med"
-            onClick={() => setActiveSection('adicionar-medicamento')}
+            onClick={() => setActiveSection('adicionar')}
           >
             <Widget type="add" className="btn-icon" />
-            Adicionar Medicamento
-          </button>
-          <button
-            className="btn-add-med btn-add-reminder"
-            onClick={() => setActiveSection('adicionar-lembrete')}
-          >
-            <Widget type="bell" className="btn-icon" />
-            Adicionar Lembrete
+            Adicionar
           </button>
         </div>
         <h3 className="agenda-subtitle">Medicamentos</h3>
