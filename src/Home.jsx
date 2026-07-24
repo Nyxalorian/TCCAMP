@@ -1560,62 +1560,91 @@ function Home({ onLogout, userData }) {
   const handleAddLembrete = async (e) => {
     e.preventDefault()
     if (novoLembrete.titulo && novoLembrete.data && novoLembrete.horario) {
-      let notificationPermission = notificationType === NOTIFICATION_TYPES.BROWSER ? 'browser' : 'default'
+      const usuarioId = sessionStorage.getItem('userId')
+      if (!usuarioId) {
+        showToastMessage('Faça login novamente para adicionar um lembrete.')
+        return
+      }
 
-      if (notificationType === NOTIFICATION_TYPES.SYSTEM) {
-        try {
+      try {
+        let notificationPermission = notificationType === NOTIFICATION_TYPES.BROWSER ? 'browser' : 'default'
+
+        if (notificationType === NOTIFICATION_TYPES.SYSTEM) {
           notificationPermission = await garantirPermissaoNotificacao()
-        } catch (error) {
-          console.error('Erro ao solicitar permissao de notificacao:', error)
-          notificationPermission = 'denied'
         }
-      }
 
-      const lembretesExistentes = JSON.parse(localStorage.getItem('lembretes') || '[]')
-      const novoLembreteObj = {
-        id: Date.now(),
-        ...novoLembrete,
-        usuario: sessionStorage.getItem('userName')
+        const response = await fetch(`${API_BASE_URL}/api/usuarios/${usuarioId}/lembretes`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(novoLembrete)
+        })
+
+        if (!response.ok) {
+          throw new Error(await getApiErrorMessage(response, 'Erro ao salvar lembrete'))
+        }
+
+        showToastMessage(
+          notificationPermission === 'browser'
+            ? 'Lembrete adicionado com notificacao pelo browser.'
+            : notificationPermission === 'granted'
+            ? 'Lembrete adicionado com sucesso!'
+            : 'Lembrete adicionado, mas as notificacoes nao estao ativadas.'
+        )
+        setNovoLembrete({ titulo: '', descricao: '', data: '', horario: '' })
+        await carregarLembretes()
+        setActiveSection('agenda')
+      } catch (error) {
+        console.error('Erro ao salvar lembrete:', error)
+        showToastMessage(error.message || 'Erro ao salvar lembrete.')
       }
-      lembretesExistentes.push(novoLembreteObj)
-      localStorage.setItem('lembretes', JSON.stringify(lembretesExistentes))
-      
-      showToastMessage(
-        notificationPermission === 'browser'
-          ? 'Lembrete adicionado com notificacao pelo browser.'
-          : notificationPermission === 'granted'
-          ? 'Lembrete adicionado com sucesso!'
-          : 'Lembrete adicionado, mas as notificacoes nao estao ativadas.'
-      )
-      setNovoLembrete({ titulo: '', descricao: '', data: '', horario: '' })
-      carregarLembretes()
-      setActiveSection('agenda')
     } else {
       showToastMessage('Preencha os campos obrigatorios do lembrete!')
     }
   }
   
-  const carregarLembretes = () => {
-    const userName = sessionStorage.getItem('userName')
-    if (!userName) return
-    
-    const lembretesExistentes = JSON.parse(localStorage.getItem('lembretes') || '[]')
-    const lembretesUsuario = lembretesExistentes.filter(l => l.usuario === userName)
-    setLembretes(lembretesUsuario)
+  const carregarLembretes = async () => {
+    const usuarioId = sessionStorage.getItem('userId')
+    if (!usuarioId) {
+      setLembretes([])
+      return
+    }
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/usuarios/${usuarioId}/lembretes`)
+      if (!response.ok) {
+        throw new Error(await getApiErrorMessage(response, 'Erro ao carregar lembretes'))
+      }
+      const data = await response.json()
+      setLembretes(Array.isArray(data) ? data : [])
+    } catch (error) {
+      console.error('Erro ao carregar lembretes:', error)
+      setLembretes([])
+    }
   }
 
-  const handleDeleteLembrete = (lembreteId) => {
+  const handleDeleteLembrete = async (lembreteId) => {
     if (!window.confirm('Tem certeza que deseja excluir este lembrete?')) return
 
-    const userName = sessionStorage.getItem('userName')
-    const lembretesExistentes = JSON.parse(localStorage.getItem('lembretes') || '[]')
-    const lembretesAtualizados = lembretesExistentes.filter((lembrete) => {
-      return !(String(lembrete.id) === String(lembreteId) && lembrete.usuario === userName)
-    })
+    const usuarioId = sessionStorage.getItem('userId')
+    if (!usuarioId) {
+      showToastMessage('Faça login novamente para excluir o lembrete.')
+      return
+    }
 
-    localStorage.setItem('lembretes', JSON.stringify(lembretesAtualizados))
-    setLembretes((current) => current.filter((lembrete) => String(lembrete.id) !== String(lembreteId)))
-    showToastMessage('Lembrete excluido com sucesso!')
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/api/usuarios/${usuarioId}/lembretes/${lembreteId}`,
+        { method: 'DELETE' }
+      )
+      if (!response.ok) {
+        throw new Error(await getApiErrorMessage(response, 'Erro ao excluir lembrete'))
+      }
+      setLembretes((current) => current.filter((lembrete) => String(lembrete.id) !== String(lembreteId)))
+      showToastMessage('Lembrete excluido com sucesso!')
+    } catch (error) {
+      console.error('Erro ao excluir lembrete:', error)
+      showToastMessage(error.message || 'Erro ao excluir lembrete.')
+    }
   }
   
   const carregarHistoricoCompleto = async () => {
