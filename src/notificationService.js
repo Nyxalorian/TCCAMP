@@ -11,24 +11,6 @@ export const NOTIFICATION_TYPES = Object.freeze({
 
 let notificationAudioContext = null;
 let browserSoundPrepared = false;
-let serviceWorkerRegistrationPromise = null;
-
-async function getNotificationServiceWorker() {
-  if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) {
-    return null;
-  }
-
-  if (!serviceWorkerRegistrationPromise) {
-    serviceWorkerRegistrationPromise = navigator.serviceWorker
-      .register("/firebase-messaging-sw.js")
-      .catch((error) => {
-        serviceWorkerRegistrationPromise = null;
-        throw error;
-      });
-  }
-
-  return serviceWorkerRegistrationPromise;
-}
 
 export function normalizeNotificationType(type) {
   return type === NOTIFICATION_TYPES.BROWSER
@@ -140,10 +122,8 @@ export async function solicitarPermissaoNotificacao() {
       return null;
     }
 
-    const serviceWorkerRegistration = await getNotificationServiceWorker();
     const token = await getToken(messaging, {
       vapidKey: VAPID_KEY,
-      ...(serviceWorkerRegistration ? { serviceWorkerRegistration } : {}),
     });
 
     return token;
@@ -169,7 +149,9 @@ export async function mostrarNotificacaoLocal({ title = "PharmaLife", body = "",
       tag
     };
 
-    const registration = await getNotificationServiceWorker();
+    const registration = "serviceWorker" in navigator
+      ? await navigator.serviceWorker.getRegistration()
+      : null;
 
     if (registration?.showNotification) {
       await registration.showNotification(title, options);
@@ -191,7 +173,7 @@ export async function mostrarNotificacaoLocal({ title = "PharmaLife", body = "",
 }
 
 export function escutarMensagens() {
-  return onMessage(messaging, (payload) => {
+  onMessage(messaging, (payload) => {
     console.log("Mensagem recebida:", payload);
 
     const title = payload.notification?.title || payload.data?.title || "PharmaLife";

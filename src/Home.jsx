@@ -18,10 +18,8 @@ import {
 
 
 const API_BASE_URL = API_CONFIG.BASE_URL
-// A versao anterior gravava a chave antes de confirmar a exibicao. Novas chaves
-// impedem que essas falhas antigas continuem bloqueando avisos validos.
-const REMINDER_NOTIFICATION_STORAGE_KEY = 'lembretesNotificadosV2'
-const MEDICATION_NOTIFICATION_STORAGE_KEY = 'medicamentosNotificadosV2'
+const REMINDER_NOTIFICATION_STORAGE_KEY = 'lembretesNotificados'
+const MEDICATION_NOTIFICATION_STORAGE_KEY = 'medicamentosNotificados'
 const REMINDER_NOTIFICATION_CHECK_INTERVAL_MS = 15 * 1000
 const REMINDER_NOTIFICATION_GRACE_MS = 60 * 60 * 1000
 
@@ -570,62 +568,49 @@ function Home({ onLogout, userData }) {
   useEffect(() => {
     if (!Array.isArray(lembretes) || lembretes.length === 0) return undefined
 
-    let checking = false
-    let disposed = false
-
-    const checkDueReminders = async () => {
-      if (checking || disposed) return
-      checking = true
+    const checkDueReminders = () => {
       const now = Date.now()
 
-      try {
-        for (const lembrete of lembretes) {
-          const reminderTime = getReminderTimestamp(lembrete)
-          if (!reminderTime) continue
+      lembretes.forEach((lembrete) => {
+        const reminderTime = getReminderTimestamp(lembrete)
+        if (!reminderTime) return
 
-          const delay = now - reminderTime
-          if (delay < 0 || delay > REMINDER_NOTIFICATION_GRACE_MS) continue
+        const delay = now - reminderTime
+        if (delay < 0 || delay > REMINDER_NOTIFICATION_GRACE_MS) return
 
-          const notificationKey = getReminderNotificationKey(lembrete)
-          const deliveryKey = `${notificationType}|${notificationKey}`
-          if (getStoredReminderNotifications().includes(deliveryKey)) continue
+        const notificationKey = getReminderNotificationKey(lembrete)
+        if (getStoredReminderNotifications().includes(notificationKey)) return
 
-          const titulo = lembrete?.titulo || 'Lembrete de saude'
-          const descricao = typeof lembrete?.descricao === 'string' ? lembrete.descricao.trim() : ''
-          const horario = formatReminderNotificationTime(lembrete)
+        markReminderAsNotified(notificationKey)
 
-          const title = `Lembrete: ${titulo}`
-          const body = descricao || `Horario marcado para ${horario}`
+        const titulo = lembrete?.titulo || 'Lembrete de saude'
+        const descricao = typeof lembrete?.descricao === 'string' ? lembrete.descricao.trim() : ''
+        const horario = formatReminderNotificationTime(lembrete)
 
-          if (notificationType === NOTIFICATION_TYPES.BROWSER) {
-            showBrowserReminderNotification({
-              title,
-              body,
-              notificationKey
-            })
-            markReminderAsNotified(deliveryKey)
-            continue
-          }
+        const title = `Lembrete: ${titulo}`
+        const body = descricao || `Horario marcado para ${horario}`
 
-          const shown = await mostrarNotificacaoLocal({
+        if (notificationType === NOTIFICATION_TYPES.BROWSER) {
+          showBrowserReminderNotification({
             title,
             body,
-            tag: `pharmalife-lembrete-${notificationKey}`
+            notificationKey
           })
-          if (shown) markReminderAsNotified(deliveryKey)
+          return
         }
-      } finally {
-        checking = false
-      }
+
+        mostrarNotificacaoLocal({
+          title,
+          body,
+          tag: `pharmalife-lembrete-${notificationKey}`
+        })
+      })
     }
 
     checkDueReminders()
     const intervalId = window.setInterval(checkDueReminders, REMINDER_NOTIFICATION_CHECK_INTERVAL_MS)
 
-    return () => {
-      disposed = true
-      window.clearInterval(intervalId)
-    }
+    return () => window.clearInterval(intervalId)
   }, [lembretes, notificationType])
 
   const isSameDay = (left, right) => {
@@ -1334,14 +1319,10 @@ function Home({ onLogout, userData }) {
   })) : [], [medicamentos])
 
   useEffect(() => {
+    if (notificationType !== NOTIFICATION_TYPES.BROWSER) return undefined
     if (!Array.isArray(agendaMedicamentos) || agendaMedicamentos.length === 0) return undefined
 
-    let checking = false
-    let disposed = false
-
-    const checkDueMedications = async () => {
-      if (checking || disposed) return
-      checking = true
+    const checkDueMedications = () => {
       const now = Date.now()
       const today = new Date()
       const hasMedicationActionToday = (med) => {
@@ -1366,51 +1347,35 @@ function Home({ onLogout, userData }) {
         })
       }
 
-      try {
-        for (const med of agendaMedicamentos) {
-          if (!med || med.status === 'INATIVO') continue
-          if (!med.horario) continue
+      agendaMedicamentos.forEach((med) => {
+        if (!med || med.status === 'INATIVO') return
+        if (!med.horario) return
 
-          if (hasMedicationActionToday(med)) continue
+        if (hasMedicationActionToday(med)) return
 
-          const medicationTime = getMedicationNotificationTimestamp(med)
-          if (!medicationTime) continue
+        const medicationTime = getMedicationNotificationTimestamp(med)
+        if (!medicationTime) return
 
-          const delay = now - medicationTime
-          if (delay < 0 || delay > REMINDER_NOTIFICATION_GRACE_MS) continue
+        const delay = now - medicationTime
+        if (delay < 0 || delay > REMINDER_NOTIFICATION_GRACE_MS) return
 
-          const notificationKey = getMedicationNotificationKey(med)
-          const deliveryKey = `${notificationType}|${notificationKey}`
-          if (getStoredMedicationNotifications().includes(deliveryKey)) continue
+        const notificationKey = getMedicationNotificationKey(med)
+        if (getStoredMedicationNotifications().includes(notificationKey)) return
 
-          const title = 'Hora do medicamento!'
-          const body = `Esta na hora de tomar ${med.nome}${med.dosagem ? ` - ${med.dosagem}` : ''}.`
+        markMedicationAsNotified(notificationKey)
 
-          if (notificationType === NOTIFICATION_TYPES.BROWSER) {
-            showBrowserReminderNotification({ title, body, notificationKey })
-            markMedicationAsNotified(deliveryKey)
-            continue
-          }
-
-          const shown = await mostrarNotificacaoLocal({
-            title,
-            body,
-            tag: `pharmalife-medicamento-${notificationKey}`
-          })
-          if (shown) markMedicationAsNotified(deliveryKey)
-        }
-      } finally {
-        checking = false
-      }
+        showBrowserReminderNotification({
+          title: 'Hora do medicamento!',
+          body: `Esta na hora de tomar ${med.nome}${med.dosagem ? ` - ${med.dosagem}` : ''}.`,
+          notificationKey
+        })
+      })
     }
 
     checkDueMedications()
     const intervalId = window.setInterval(checkDueMedications, REMINDER_NOTIFICATION_CHECK_INTERVAL_MS)
 
-    return () => {
-      disposed = true
-      window.clearInterval(intervalId)
-    }
+    return () => window.clearInterval(intervalId)
   }, [agendaMedicamentos, historicoCompleto, notificationType])
 
   const renderDashboard = () => {
@@ -2840,8 +2805,7 @@ setPerfil({
                 name="notificationType"
                 value={NOTIFICATION_TYPES.SYSTEM}
                 checked={notificationType === NOTIFICATION_TYPES.SYSTEM}
-                onChange={() => {}}
-                onClick={() => updateNotificationType(NOTIFICATION_TYPES.SYSTEM)}
+                onChange={() => updateNotificationType(NOTIFICATION_TYPES.SYSTEM)}
               />
               <span>
                 <strong>Notificacoes pelo sistema</strong>
@@ -2854,8 +2818,7 @@ setPerfil({
                 name="notificationType"
                 value={NOTIFICATION_TYPES.BROWSER}
                 checked={notificationType === NOTIFICATION_TYPES.BROWSER}
-                onChange={() => {}}
-                onClick={() => updateNotificationType(NOTIFICATION_TYPES.BROWSER)}
+                onChange={() => updateNotificationType(NOTIFICATION_TYPES.BROWSER)}
               />
               <span>
                 <strong>Notificacao pelo Browser</strong>

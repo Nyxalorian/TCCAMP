@@ -82,7 +82,7 @@ function App() {
   })
 
   useEffect(() => {
-    return escutarMensagens()
+    escutarMensagens()
   }, [])
 
   const ativarNotificacoesSistema = async (usuario) => {
