@@ -15,13 +15,20 @@ const messaging = firebase.messaging();
 messaging.onBackgroundMessage((payload) => {
   console.log("Mensagem recebida:", payload);
 
-  const title = payload.data?.title || "Agenda MP";
+  // O Firebase ja exibe automaticamente mensagens que possuem o campo
+  // "notification". Exibir novamente aqui causaria notificacoes duplicadas.
+  if (payload.notification) {
+    return;
+  }
+
+  const title = payload.data?.title || "PharmaLife";
   const body = payload.data?.body || "";
 
   self.registration.showNotification(title, {
-    body: body,
+    body,
     icon: "https://pharmalife-81306.web.app/favicon.png",
-    badge: "https://pharmalife-81306.web.app/favicon.png"
+    badge: "https://pharmalife-81306.web.app/favicon.png",
+    tag: payload.data?.tag
   });
 });
 

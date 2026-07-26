@@ -11,6 +11,24 @@ export const NOTIFICATION_TYPES = Object.freeze({
 
 let notificationAudioContext = null;
 let browserSoundPrepared = false;
+let serviceWorkerRegistrationPromise = null;
+
+async function getNotificationServiceWorker() {
+  if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) {
+    return null;
+  }
+
+  if (!serviceWorkerRegistrationPromise) {
+    serviceWorkerRegistrationPromise = navigator.serviceWorker
+      .register("/firebase-messaging-sw.js")
+      .catch((error) => {
+        serviceWorkerRegistrationPromise = null;
+        throw error;
+      });
+  }
+
+  return serviceWorkerRegistrationPromise;
+}
 
 export function normalizeNotificationType(type) {
   return type === NOTIFICATION_TYPES.BROWSER
@@ -122,8 +140,10 @@ export async function solicitarPermissaoNotificacao() {
       return null;
     }
 
+    const serviceWorkerRegistration = await getNotificationServiceWorker();
     const token = await getToken(messaging, {
       vapidKey: VAPID_KEY,
+      ...(serviceWorkerRegistration ? { serviceWorkerRegistration } : {}),
     });
 
     return token;
@@ -149,9 +169,7 @@ export async function mostrarNotificacaoLocal({ title = "PharmaLife", body = "",
       tag
     };
 
-    const registration = "serviceWorker" in navigator
-      ? await navigator.serviceWorker.getRegistration()
-      : null;
+    const registration = await getNotificationServiceWorker();
 
     if (registration?.showNotification) {
       await registration.showNotification(title, options);

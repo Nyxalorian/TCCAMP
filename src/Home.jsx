@@ -568,49 +568,61 @@ function Home({ onLogout, userData }) {
   useEffect(() => {
     if (!Array.isArray(lembretes) || lembretes.length === 0) return undefined
 
-    const checkDueReminders = () => {
+    let checking = false
+    let disposed = false
+
+    const checkDueReminders = async () => {
+      if (checking || disposed) return
+      checking = true
       const now = Date.now()
 
-      lembretes.forEach((lembrete) => {
-        const reminderTime = getReminderTimestamp(lembrete)
-        if (!reminderTime) return
+      try {
+        for (const lembrete of lembretes) {
+          const reminderTime = getReminderTimestamp(lembrete)
+          if (!reminderTime) continue
 
-        const delay = now - reminderTime
-        if (delay < 0 || delay > REMINDER_NOTIFICATION_GRACE_MS) return
+          const delay = now - reminderTime
+          if (delay < 0 || delay > REMINDER_NOTIFICATION_GRACE_MS) continue
 
-        const notificationKey = getReminderNotificationKey(lembrete)
-        if (getStoredReminderNotifications().includes(notificationKey)) return
+          const notificationKey = getReminderNotificationKey(lembrete)
+          if (getStoredReminderNotifications().includes(notificationKey)) continue
 
-        markReminderAsNotified(notificationKey)
+          const titulo = lembrete?.titulo || 'Lembrete de saude'
+          const descricao = typeof lembrete?.descricao === 'string' ? lembrete.descricao.trim() : ''
+          const horario = formatReminderNotificationTime(lembrete)
 
-        const titulo = lembrete?.titulo || 'Lembrete de saude'
-        const descricao = typeof lembrete?.descricao === 'string' ? lembrete.descricao.trim() : ''
-        const horario = formatReminderNotificationTime(lembrete)
+          const title = `Lembrete: ${titulo}`
+          const body = descricao || `Horario marcado para ${horario}`
 
-        const title = `Lembrete: ${titulo}`
-        const body = descricao || `Horario marcado para ${horario}`
+          if (notificationType === NOTIFICATION_TYPES.BROWSER) {
+            showBrowserReminderNotification({
+              title,
+              body,
+              notificationKey
+            })
+            markReminderAsNotified(notificationKey)
+            continue
+          }
 
-        if (notificationType === NOTIFICATION_TYPES.BROWSER) {
-          showBrowserReminderNotification({
+          const shown = await mostrarNotificacaoLocal({
             title,
             body,
-            notificationKey
+            tag: `pharmalife-lembrete-${notificationKey}`
           })
-          return
+          if (shown) markReminderAsNotified(notificationKey)
         }
-
-        mostrarNotificacaoLocal({
-          title,
-          body,
-          tag: `pharmalife-lembrete-${notificationKey}`
-        })
-      })
+      } finally {
+        checking = false
+      }
     }
 
     checkDueReminders()
     const intervalId = window.setInterval(checkDueReminders, REMINDER_NOTIFICATION_CHECK_INTERVAL_MS)
 
-    return () => window.clearInterval(intervalId)
+    return () => {
+      disposed = true
+      window.clearInterval(intervalId)
+    }
   }, [lembretes, notificationType])
 
   const isSameDay = (left, right) => {
@@ -1316,10 +1328,14 @@ function Home({ onLogout, userData }) {
   })) : [], [medicamentos])
 
   useEffect(() => {
-    if (notificationType !== NOTIFICATION_TYPES.BROWSER) return undefined
     if (!Array.isArray(agendaMedicamentos) || agendaMedicamentos.length === 0) return undefined
 
-    const checkDueMedications = () => {
+    let checking = false
+    let disposed = false
+
+    const checkDueMedications = async () => {
+      if (checking || disposed) return
+      checking = true
       const now = Date.now()
       const today = new Date()
       const hasMedicationActionToday = (med) => {
@@ -1344,35 +1360,50 @@ function Home({ onLogout, userData }) {
         })
       }
 
-      agendaMedicamentos.forEach((med) => {
-        if (!med || med.status === 'INATIVO') return
-        if (!med.horario) return
+      try {
+        for (const med of agendaMedicamentos) {
+          if (!med || med.status === 'INATIVO') continue
+          if (!med.horario) continue
 
-        if (hasMedicationActionToday(med)) return
+          if (hasMedicationActionToday(med)) continue
 
-        const medicationTime = getMedicationNotificationTimestamp(med)
-        if (!medicationTime) return
+          const medicationTime = getMedicationNotificationTimestamp(med)
+          if (!medicationTime) continue
 
-        const delay = now - medicationTime
-        if (delay < 0 || delay > REMINDER_NOTIFICATION_GRACE_MS) return
+          const delay = now - medicationTime
+          if (delay < 0 || delay > REMINDER_NOTIFICATION_GRACE_MS) continue
 
-        const notificationKey = getMedicationNotificationKey(med)
-        if (getStoredMedicationNotifications().includes(notificationKey)) return
+          const notificationKey = getMedicationNotificationKey(med)
+          if (getStoredMedicationNotifications().includes(notificationKey)) continue
 
-        markMedicationAsNotified(notificationKey)
+          const title = 'Hora do medicamento!'
+          const body = `Esta na hora de tomar ${med.nome}${med.dosagem ? ` - ${med.dosagem}` : ''}.`
 
-        showBrowserReminderNotification({
-          title: 'Hora do medicamento!',
-          body: `Esta na hora de tomar ${med.nome}${med.dosagem ? ` - ${med.dosagem}` : ''}.`,
-          notificationKey
-        })
-      })
+          if (notificationType === NOTIFICATION_TYPES.BROWSER) {
+            showBrowserReminderNotification({ title, body, notificationKey })
+            markMedicationAsNotified(notificationKey)
+            continue
+          }
+
+          const shown = await mostrarNotificacaoLocal({
+            title,
+            body,
+            tag: `pharmalife-medicamento-${notificationKey}`
+          })
+          if (shown) markMedicationAsNotified(notificationKey)
+        }
+      } finally {
+        checking = false
+      }
     }
 
     checkDueMedications()
     const intervalId = window.setInterval(checkDueMedications, REMINDER_NOTIFICATION_CHECK_INTERVAL_MS)
 
-    return () => window.clearInterval(intervalId)
+    return () => {
+      disposed = true
+      window.clearInterval(intervalId)
+    }
   }, [agendaMedicamentos, historicoCompleto, notificationType])
 
   const renderDashboard = () => {
