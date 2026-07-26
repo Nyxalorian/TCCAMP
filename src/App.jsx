@@ -173,8 +173,20 @@ function App() {
     setIsLoggedIn(false)
     setUserData(null)
     setNeedsOnboarding(false)
-    sessionStorage.removeItem('isLoggedIn')
-    sessionStorage.removeItem('usuario')
+    const sessionKeys = [
+      'isLoggedIn',
+      'usuario',
+      'userId',
+      'userName',
+      'userEmail',
+      'userPhoto',
+      'fcmToken',
+      'notificationType',
+      'agendaId',
+      'isAdmin'
+    ]
+    sessionKeys.forEach((key) => sessionStorage.removeItem(key))
+    localStorage.removeItem('usuario')
   }
 
   const toggleAccessibilityMode = () => {

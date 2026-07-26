@@ -44,7 +44,6 @@ function Login({ onGoToCadastro, onLogin }) {
       if (!response.ok) throw new Error('Credenciais inválidas')
 
       const data = await response.json()
-      localStorage.setItem('usuario', JSON.stringify(data))
       sessionStorage.setItem('userName', data.nome)
       sessionStorage.setItem('userEmail', data.email)
       sessionStorage.setItem('userId', data.id)

@@ -126,8 +126,6 @@ export async function solicitarPermissaoNotificacao() {
       vapidKey: VAPID_KEY,
     });
 
-    console.log("Token FCM:", token);
-
     return token;
   } catch (error) {
     console.error("Erro ao obter token:", error);

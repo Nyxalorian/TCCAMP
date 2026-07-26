@@ -299,11 +299,6 @@ function TablerIcon({ name }) {
 
 function Home({ onLogout, userData }) {
 
-    console.count("Home render");
-
-  console.log("userData:", userData)
-  console.log("foto:", userData?.foto)
-
   const [activeSection, setActiveSection] = useState('dashboard')
   const [isAdmin] = useState(() => sessionStorage.getItem('isAdmin') === 'true')
 
@@ -1273,8 +1268,11 @@ function Home({ onLogout, userData }) {
     if (!userName) return
     setLoading(true)
     try {
-      let usuarioId = sessionStorage.getItem('userId')
-      if (!usuarioId) { usuarioId = 1; sessionStorage.setItem('userId', usuarioId) }
+      const usuarioId = sessionStorage.getItem('userId')
+      if (!usuarioId) {
+        setMedicamentos([])
+        return
+      }
 
       // 1. Busca agendas do usuário
       const agendaResp = await fetch(`${API_BASE_URL}/api/usuarios/${usuarioId}/agenda`)
@@ -1583,8 +1581,11 @@ function Home({ onLogout, userData }) {
   const handleAddMedicamento = async () => {
     if (novoMedicamento.nome && novoMedicamento.dosagem && novoMedicamento.horario) {
       try {
-        let usuarioId = sessionStorage.getItem('userId')
-        if (!usuarioId) { usuarioId = 1; sessionStorage.setItem('userId', usuarioId) }
+        const usuarioId = sessionStorage.getItem('userId')
+        if (!usuarioId) {
+          showToastMessage('Sua sessao expirou. Entre novamente para adicionar medicamentos.')
+          return
+        }
 
         // 1. Cria ou reutiliza agenda do usuário
         sessionStorage.removeItem('agendaId')
@@ -1742,8 +1743,11 @@ function Home({ onLogout, userData }) {
   
   const carregarHistoricoCompleto = async () => {
     try {
-      let usuarioId = sessionStorage.getItem('userId')
-      if (!usuarioId) { usuarioId = 1; sessionStorage.setItem('userId', usuarioId) }
+      const usuarioId = sessionStorage.getItem('userId')
+      if (!usuarioId) {
+        setHistoricoCompleto([])
+        return
+      }
 
       const response = await fetch(`${API_BASE_URL}/api/usuarios/${usuarioId}/historico`)
       if (response.ok) {
@@ -1814,9 +1818,6 @@ function Home({ onLogout, userData }) {
         const response = await fetch(`${API_BASE_URL}/api/usuarios/${userId}`)
         if (response.ok) {
           const usuario = await response.json()
-
-console.log("Usuário do backend:", usuario)
-console.log("Foto da sessão:", sessionStorage.getItem("userPhoto"))
 
 setPerfil({
     nome: usuario.nome,
@@ -2725,7 +2726,6 @@ setPerfil({
     
     try {
       const userId = sessionStorage.getItem('userId')
-      console.log("userId:", userId)
       const response = await fetch(`${API_BASE_URL}/api/usuarios/${userId}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
