@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import './Onboarding.css'
 import API_CONFIG from './config'
+import { apiFetch as fetch } from './api'
 import { normalizeNotificationType, NOTIFICATION_TYPES } from './notificationService'
 
 const API_BASE_URL = API_CONFIG.BASE_URL

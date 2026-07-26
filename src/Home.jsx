@@ -5,6 +5,7 @@ import './Accessibility.css'
 import Sobre from './Sobre'
 import pharmalifeLogo from './assets/pharmalife-logo.png'
 import API_CONFIG from './config'
+import { apiFetch as fetch } from './api'
 import {
   garantirPermissaoNotificacao,
   mostrarNotificacaoLocal,

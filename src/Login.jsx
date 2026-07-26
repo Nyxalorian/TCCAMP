@@ -3,6 +3,7 @@ import { signInWithRedirect } from 'firebase/auth'
 import { auth, provider } from './firebase'
 import './Login.css'
 import API_CONFIG from './config'
+import { apiFetch as fetch } from './api'
 
 const API_BASE_URL = API_CONFIG.BASE_URL
 

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import './Cadastro.css'
 import API_CONFIG from './config'
+import { apiFetch as fetch } from './api'
 
 const API_BASE_URL = API_CONFIG.BASE_URL
 const ONBOARDING_PENDING_DATE = '1900-01-01'

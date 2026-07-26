@@ -8,6 +8,7 @@ import Onboarding from './Onboarding'
 import './App.css'
 import './Accessibility.css'
 import API_CONFIG from './config'
+import { apiFetch as fetch } from './api'
 import {
   solicitarPermissaoNotificacao,
   escutarMensagens,
@@ -134,6 +135,9 @@ function App() {
   }, [])
 
   const handleLogin = async (data) => {
+    if (data?.authToken) {
+      sessionStorage.setItem('authToken', data.authToken)
+    }
     const usuario = normalizeUser(data)
     const profileComplete = isProfileComplete(usuario)
 
@@ -148,6 +152,9 @@ function App() {
   }
 
   const handleCadastroSuccess = async (data) => {
+    if (data?.authToken) {
+      sessionStorage.setItem('authToken', data.authToken)
+    }
     const usuario = normalizeUser(data)
 
     saveUserSession(usuario)
@@ -183,7 +190,8 @@ function App() {
       'fcmToken',
       'notificationType',
       'agendaId',
-      'isAdmin'
+      'isAdmin',
+      'authToken'
     ]
     sessionKeys.forEach((key) => sessionStorage.removeItem(key))
     localStorage.removeItem('usuario')
