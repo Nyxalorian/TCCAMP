@@ -191,7 +191,7 @@ export async function mostrarNotificacaoLocal({ title = "PharmaLife", body = "",
 }
 
 export function escutarMensagens() {
-  onMessage(messaging, (payload) => {
+  return onMessage(messaging, (payload) => {
     console.log("Mensagem recebida:", payload);
 
     const title = payload.notification?.title || payload.data?.title || "PharmaLife";

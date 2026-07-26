@@ -18,8 +18,10 @@ import {
 
 
 const API_BASE_URL = API_CONFIG.BASE_URL
-const REMINDER_NOTIFICATION_STORAGE_KEY = 'lembretesNotificados'
-const MEDICATION_NOTIFICATION_STORAGE_KEY = 'medicamentosNotificados'
+// A versao anterior gravava a chave antes de confirmar a exibicao. Novas chaves
+// impedem que essas falhas antigas continuem bloqueando avisos validos.
+const REMINDER_NOTIFICATION_STORAGE_KEY = 'lembretesNotificadosV2'
+const MEDICATION_NOTIFICATION_STORAGE_KEY = 'medicamentosNotificadosV2'
 const REMINDER_NOTIFICATION_CHECK_INTERVAL_MS = 15 * 1000
 const REMINDER_NOTIFICATION_GRACE_MS = 60 * 60 * 1000
 
@@ -338,6 +340,8 @@ function Home({ onLogout, userData }) {
     return normalizeNotificationType(userData?.tipoNotificacao || sessionStorage.getItem('notificationType'))
   })
   const [browserNotification, setBrowserNotification] = useState(null)
+  const [notificationTestRunning, setNotificationTestRunning] = useState(false)
+  const [notificationDiagnostic, setNotificationDiagnostic] = useState('')
   const [accessibilityLevel, setAccessibilityLevel] = useState(() => {
     const savedLevel = localStorage.getItem('accessibilityLevel')
     if (['normal', 'medium', 'large', 'xlarge'].includes(savedLevel)) {
@@ -740,11 +744,14 @@ function Home({ onLogout, userData }) {
 
         if (token && userId) {
           sessionStorage.setItem('fcmToken', token)
-          await fetch(`${API_BASE_URL}/api/usuarios/${userId}/fcm-token`, {
+          const tokenResponse = await fetch(`${API_BASE_URL}/api/usuarios/${userId}/fcm-token`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ token })
           })
+          if (!tokenResponse.ok) {
+            throw new Error(await getApiErrorMessage(tokenResponse, 'Erro ao salvar o token de notificacao'))
+          }
         }
 
         showToastMessage(
@@ -762,6 +769,60 @@ function Home({ onLogout, userData }) {
       setNotificationType(previousType)
       sessionStorage.setItem('notificationType', previousType)
       showToastMessage(error.message || 'Erro ao salvar tipo de notificacao.')
+    }
+  }
+
+  const testNotification = async () => {
+    if (notificationTestRunning) return
+
+    setNotificationTestRunning(true)
+    setNotificationDiagnostic('')
+
+    try {
+      if (notificationType === NOTIFICATION_TYPES.BROWSER) {
+        prepararSomNotificacaoBrowser()
+        showBrowserReminderNotification({
+          title: 'Teste do PharmaLife',
+          body: 'As notificacoes dentro do site estao funcionando.',
+          notificationKey: 'teste-browser'
+        })
+        setNotificationDiagnostic('Teste exibido dentro do site. Mantenha esta pagina aberta para receber esse tipo de aviso.')
+        return
+      }
+
+      const userId = sessionStorage.getItem('userId')
+      if (!userId) throw new Error('Sessao sem identificacao do usuario.')
+
+      const token = await solicitarPermissaoNotificacao()
+      if (!token) {
+        const permission = 'Notification' in window ? Notification.permission : 'nao suportado'
+        throw new Error(`O navegador nao gerou um token. Permissao atual: ${permission}.`)
+      }
+
+      const tokenResponse = await fetch(`${API_BASE_URL}/api/usuarios/${userId}/fcm-token`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token })
+      })
+      if (!tokenResponse.ok) {
+        throw new Error(await getApiErrorMessage(tokenResponse, 'O backend nao salvou o token FCM.'))
+      }
+
+      sessionStorage.setItem('fcmToken', token)
+
+      const testResponse = await fetch(`${API_BASE_URL}/api/notificacoes/teste`, {
+        method: 'POST'
+      })
+      if (!testResponse.ok) {
+        throw new Error(await getApiErrorMessage(testResponse, 'O backend nao conseguiu enviar pelo Firebase.'))
+      }
+
+      setNotificationDiagnostic('O backend aceitou o envio pelo Firebase. A notificacao deve aparecer no sistema em alguns segundos.')
+    } catch (error) {
+      console.error('Falha no teste de notificacao:', error)
+      setNotificationDiagnostic(error.message || 'Falha no teste de notificacao.')
+    } finally {
+      setNotificationTestRunning(false)
     }
   }
 
@@ -2854,6 +2915,19 @@ setPerfil({
               </span>
             </label>
           </fieldset>
+          <div className="notification-test">
+            <button
+              type="button"
+              className="btn-primary"
+              onClick={testNotification}
+              disabled={notificationTestRunning}
+            >
+              {notificationTestRunning ? 'Testando...' : 'Testar notificacao agora'}
+            </button>
+            {notificationDiagnostic && (
+              <p role="status" aria-live="polite">{notificationDiagnostic}</p>
+            )}
+          </div>
           <label>
             <span>Modo escuro</span>
             <input 

@@ -81,7 +81,7 @@ function App() {
   })
 
   useEffect(() => {
-    escutarMensagens()
+    return escutarMensagens()
   }, [])
 
   const ativarNotificacoesSistema = async (usuario) => {
@@ -95,7 +95,7 @@ function App() {
     if (token) {
       sessionStorage.setItem('fcmToken', token)
 
-      await fetch(`${API_BASE_URL}/api/usuarios/${usuario.id}/fcm-token`, {
+      const response = await fetch(`${API_BASE_URL}/api/usuarios/${usuario.id}/fcm-token`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
@@ -104,6 +104,11 @@ function App() {
           token: token
         })
       })
+
+      if (!response.ok) {
+        console.error('O backend nao salvou o token FCM:', response.status)
+        sessionStorage.removeItem('fcmToken')
+      }
     }
   }
 
