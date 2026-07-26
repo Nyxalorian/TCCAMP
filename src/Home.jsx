@@ -340,8 +340,6 @@ function Home({ onLogout, userData }) {
     return normalizeNotificationType(userData?.tipoNotificacao || sessionStorage.getItem('notificationType'))
   })
   const [browserNotification, setBrowserNotification] = useState(null)
-  const [notificationTestRunning, setNotificationTestRunning] = useState(false)
-  const [notificationDiagnostic, setNotificationDiagnostic] = useState('')
   const [accessibilityLevel, setAccessibilityLevel] = useState(() => {
     const savedLevel = localStorage.getItem('accessibilityLevel')
     if (['normal', 'medium', 'large', 'xlarge'].includes(savedLevel)) {
@@ -589,7 +587,8 @@ function Home({ onLogout, userData }) {
           if (delay < 0 || delay > REMINDER_NOTIFICATION_GRACE_MS) continue
 
           const notificationKey = getReminderNotificationKey(lembrete)
-          if (getStoredReminderNotifications().includes(notificationKey)) continue
+          const deliveryKey = `${notificationType}|${notificationKey}`
+          if (getStoredReminderNotifications().includes(deliveryKey)) continue
 
           const titulo = lembrete?.titulo || 'Lembrete de saude'
           const descricao = typeof lembrete?.descricao === 'string' ? lembrete.descricao.trim() : ''
@@ -604,7 +603,7 @@ function Home({ onLogout, userData }) {
               body,
               notificationKey
             })
-            markReminderAsNotified(notificationKey)
+            markReminderAsNotified(deliveryKey)
             continue
           }
 
@@ -613,7 +612,7 @@ function Home({ onLogout, userData }) {
             body,
             tag: `pharmalife-lembrete-${notificationKey}`
           })
-          if (shown) markReminderAsNotified(notificationKey)
+          if (shown) markReminderAsNotified(deliveryKey)
         }
       } finally {
         checking = false
@@ -769,60 +768,6 @@ function Home({ onLogout, userData }) {
       setNotificationType(previousType)
       sessionStorage.setItem('notificationType', previousType)
       showToastMessage(error.message || 'Erro ao salvar tipo de notificacao.')
-    }
-  }
-
-  const testNotification = async () => {
-    if (notificationTestRunning) return
-
-    setNotificationTestRunning(true)
-    setNotificationDiagnostic('')
-
-    try {
-      if (notificationType === NOTIFICATION_TYPES.BROWSER) {
-        prepararSomNotificacaoBrowser()
-        showBrowserReminderNotification({
-          title: 'Teste do PharmaLife',
-          body: 'As notificacoes dentro do site estao funcionando.',
-          notificationKey: 'teste-browser'
-        })
-        setNotificationDiagnostic('Teste exibido dentro do site. Mantenha esta pagina aberta para receber esse tipo de aviso.')
-        return
-      }
-
-      const userId = sessionStorage.getItem('userId')
-      if (!userId) throw new Error('Sessao sem identificacao do usuario.')
-
-      const token = await solicitarPermissaoNotificacao()
-      if (!token) {
-        const permission = 'Notification' in window ? Notification.permission : 'nao suportado'
-        throw new Error(`O navegador nao gerou um token. Permissao atual: ${permission}.`)
-      }
-
-      const tokenResponse = await fetch(`${API_BASE_URL}/api/usuarios/${userId}/fcm-token`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token })
-      })
-      if (!tokenResponse.ok) {
-        throw new Error(await getApiErrorMessage(tokenResponse, 'O backend nao salvou o token FCM.'))
-      }
-
-      sessionStorage.setItem('fcmToken', token)
-
-      const testResponse = await fetch(`${API_BASE_URL}/api/notificacoes/teste`, {
-        method: 'POST'
-      })
-      if (!testResponse.ok) {
-        throw new Error(await getApiErrorMessage(testResponse, 'O backend nao conseguiu enviar pelo Firebase.'))
-      }
-
-      setNotificationDiagnostic('O backend aceitou o envio pelo Firebase. A notificacao deve aparecer no sistema em alguns segundos.')
-    } catch (error) {
-      console.error('Falha no teste de notificacao:', error)
-      setNotificationDiagnostic(error.message || 'Falha no teste de notificacao.')
-    } finally {
-      setNotificationTestRunning(false)
     }
   }
 
@@ -1435,14 +1380,15 @@ function Home({ onLogout, userData }) {
           if (delay < 0 || delay > REMINDER_NOTIFICATION_GRACE_MS) continue
 
           const notificationKey = getMedicationNotificationKey(med)
-          if (getStoredMedicationNotifications().includes(notificationKey)) continue
+          const deliveryKey = `${notificationType}|${notificationKey}`
+          if (getStoredMedicationNotifications().includes(deliveryKey)) continue
 
           const title = 'Hora do medicamento!'
           const body = `Esta na hora de tomar ${med.nome}${med.dosagem ? ` - ${med.dosagem}` : ''}.`
 
           if (notificationType === NOTIFICATION_TYPES.BROWSER) {
             showBrowserReminderNotification({ title, body, notificationKey })
-            markMedicationAsNotified(notificationKey)
+            markMedicationAsNotified(deliveryKey)
             continue
           }
 
@@ -1451,7 +1397,7 @@ function Home({ onLogout, userData }) {
             body,
             tag: `pharmalife-medicamento-${notificationKey}`
           })
-          if (shown) markMedicationAsNotified(notificationKey)
+          if (shown) markMedicationAsNotified(deliveryKey)
         }
       } finally {
         checking = false
@@ -2894,7 +2840,8 @@ setPerfil({
                 name="notificationType"
                 value={NOTIFICATION_TYPES.SYSTEM}
                 checked={notificationType === NOTIFICATION_TYPES.SYSTEM}
-                onChange={() => updateNotificationType(NOTIFICATION_TYPES.SYSTEM)}
+                onChange={() => {}}
+                onClick={() => updateNotificationType(NOTIFICATION_TYPES.SYSTEM)}
               />
               <span>
                 <strong>Notificacoes pelo sistema</strong>
@@ -2907,7 +2854,8 @@ setPerfil({
                 name="notificationType"
                 value={NOTIFICATION_TYPES.BROWSER}
                 checked={notificationType === NOTIFICATION_TYPES.BROWSER}
-                onChange={() => updateNotificationType(NOTIFICATION_TYPES.BROWSER)}
+                onChange={() => {}}
+                onClick={() => updateNotificationType(NOTIFICATION_TYPES.BROWSER)}
               />
               <span>
                 <strong>Notificacao pelo Browser</strong>
@@ -2915,19 +2863,6 @@ setPerfil({
               </span>
             </label>
           </fieldset>
-          <div className="notification-test">
-            <button
-              type="button"
-              className="btn-primary"
-              onClick={testNotification}
-              disabled={notificationTestRunning}
-            >
-              {notificationTestRunning ? 'Testando...' : 'Testar notificacao agora'}
-            </button>
-            {notificationDiagnostic && (
-              <p role="status" aria-live="polite">{notificationDiagnostic}</p>
-            )}
-          </div>
           <label>
             <span>Modo escuro</span>
             <input 

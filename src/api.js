@@ -1,4 +1,4 @@
-export function apiFetch(input, init = {}) {
+export async function apiFetch(input, init = {}) {
   const headers = new Headers(init.headers || {})
   const token = sessionStorage.getItem('authToken')
 
@@ -6,8 +6,14 @@ export function apiFetch(input, init = {}) {
     headers.set('Authorization', `Bearer ${token}`)
   }
 
-  return window.fetch(input, {
+  const response = await window.fetch(input, {
     ...init,
     headers
   })
+
+  if (token && response.status === 401) {
+    window.dispatchEvent(new CustomEvent('pharmalife:session-expired'))
+  }
+
+  return response
 }

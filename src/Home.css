@@ -2218,22 +2218,6 @@ button .ui-widget {
   font-weight: 700;
 }
 
-.notification-test {
-  display: grid;
-  gap: 8px;
-  margin: 12px 0;
-}
-
-.notification-test .btn-primary {
-  width: fit-content;
-}
-
-.notification-test p {
-  margin: 0;
-  color: var(--pharma-muted, #6b7280);
-  font-size: 13px;
-  line-height: 1.4;
-}
 
 .browser-reminder-alert__close:hover {
   background: rgba(26, 58, 107, 0.07);

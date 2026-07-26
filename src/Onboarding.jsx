@@ -2,7 +2,11 @@ import { useEffect, useMemo, useState } from 'react'
 import './Onboarding.css'
 import API_CONFIG from './config'
 import { apiFetch as fetch } from './api'
-import { normalizeNotificationType, NOTIFICATION_TYPES } from './notificationService'
+import {
+  normalizeNotificationType,
+  NOTIFICATION_TYPES,
+  solicitarPermissaoNotificacao
+} from './notificationService'
 
 const API_BASE_URL = API_CONFIG.BASE_URL
 const NO_COMORBIDITIES = 'Nao possuo comorbidades'
@@ -133,6 +137,7 @@ function Onboarding({ userData, onComplete, onLogout }) {
   const [notificationType, setNotificationType] = useState(() => {
     return normalizeNotificationType(userData?.tipoNotificacao)
   })
+  const [notificationChoiceConfirmed, setNotificationChoiceConfirmed] = useState(false)
   const [acceptedTerms, setAcceptedTerms] = useState(false)
 
   const totalQuestions = 5
@@ -197,11 +202,49 @@ function Onboarding({ userData, onComplete, onLogout }) {
       return
     }
 
+    if (step === 4 && !notificationChoiceConfirmed) {
+      alert('Escolha como deseja receber as notificacoes.')
+      return
+    }
+
     setStep((current) => Math.min(current + 1, 6))
   }
 
   const goBack = () => {
     setStep((current) => Math.max(current - 1, 0))
+  }
+
+  const selectNotificationType = async (type) => {
+    const normalizedType = normalizeNotificationType(type)
+    setNotificationType(normalizedType)
+    setNotificationChoiceConfirmed(true)
+
+    if (normalizedType !== NOTIFICATION_TYPES.SYSTEM) return
+
+    const token = await solicitarPermissaoNotificacao()
+    if (!token) {
+      setNotificationChoiceConfirmed(false)
+      alert('O navegador nao liberou as notificacoes do sistema. Verifique a permissao do site.')
+      return
+    }
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/usuarios/${userData.id}/fcm-token`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token })
+      })
+
+      if (!response.ok) {
+        throw new Error('O servidor nao conseguiu salvar o token de notificacao.')
+      }
+
+      sessionStorage.setItem('fcmToken', token)
+    } catch (error) {
+      setNotificationChoiceConfirmed(false)
+      console.error(error)
+      alert(error.message || 'Nao foi possivel ativar as notificacoes do sistema.')
+    }
   }
 
   const finishOnboarding = async () => {
@@ -409,7 +452,8 @@ function Onboarding({ userData, onComplete, onLogout }) {
                     name="tipoNotificacao"
                     value={NOTIFICATION_TYPES.SYSTEM}
                     checked={notificationType === NOTIFICATION_TYPES.SYSTEM}
-                    onChange={() => setNotificationType(NOTIFICATION_TYPES.SYSTEM)}
+                    onChange={() => {}}
+                    onClick={() => selectNotificationType(NOTIFICATION_TYPES.SYSTEM)}
                   />
                   <span>
                     <strong>Notificacoes pelo sistema</strong>
@@ -422,7 +466,8 @@ function Onboarding({ userData, onComplete, onLogout }) {
                     name="tipoNotificacao"
                     value={NOTIFICATION_TYPES.BROWSER}
                     checked={notificationType === NOTIFICATION_TYPES.BROWSER}
-                    onChange={() => setNotificationType(NOTIFICATION_TYPES.BROWSER)}
+                    onChange={() => {}}
+                    onClick={() => selectNotificationType(NOTIFICATION_TYPES.BROWSER)}
                   />
                   <span>
                     <strong>Notificacao pelo Browser</strong>

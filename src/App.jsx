@@ -70,6 +70,7 @@ function App() {
   const [currentPage, setCurrentPage] = useState('cadastro')
   const [isLoggedIn, setIsLoggedIn] = useState(() => {
     return sessionStorage.getItem('isLoggedIn') === 'true'
+      && Boolean(sessionStorage.getItem('authToken'))
   })
   const [accessibilityMode, setAccessibilityMode] = useState(() => {
     return localStorage.getItem('accessibilityMode') === 'true'
@@ -201,6 +202,20 @@ function App() {
     sessionKeys.forEach((key) => sessionStorage.removeItem(key))
     localStorage.removeItem('usuario')
   }
+
+  useEffect(() => {
+    const handleExpiredSession = () => handleLogout()
+    window.addEventListener('pharmalife:session-expired', handleExpiredSession)
+
+    if (sessionStorage.getItem('isLoggedIn') === 'true'
+        && !sessionStorage.getItem('authToken')) {
+      handleLogout()
+    }
+
+    return () => {
+      window.removeEventListener('pharmalife:session-expired', handleExpiredSession)
+    }
+  }, [])
 
   const toggleAccessibilityMode = () => {
     const newMode = !accessibilityMode
