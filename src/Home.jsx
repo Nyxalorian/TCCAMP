@@ -20,6 +20,7 @@ import {
 const API_BASE_URL = API_CONFIG.BASE_URL
 const REMINDER_NOTIFICATION_STORAGE_KEY = 'lembretesNotificados'
 const MEDICATION_NOTIFICATION_STORAGE_KEY = 'medicamentosNotificados'
+const ACTIVE_BROWSER_NOTIFICATION_STORAGE_KEY = 'notificacaoBrowserAtiva'
 const REMINDER_NOTIFICATION_CHECK_INTERVAL_MS = 15 * 1000
 const REMINDER_NOTIFICATION_GRACE_MS = 60 * 60 * 1000
 
@@ -337,7 +338,13 @@ function Home({ onLogout, userData }) {
   const [notificationType, setNotificationType] = useState(() => {
     return normalizeNotificationType(userData?.tipoNotificacao || sessionStorage.getItem('notificationType'))
   })
-  const [browserNotification, setBrowserNotification] = useState(null)
+  const [browserNotification, setBrowserNotification] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem(ACTIVE_BROWSER_NOTIFICATION_STORAGE_KEY) || 'null')
+    } catch {
+      return null
+    }
+  })
   const [accessibilityLevel, setAccessibilityLevel] = useState(() => {
     const savedLevel = localStorage.getItem('accessibilityLevel')
     if (['normal', 'medium', 'large', 'xlarge'].includes(savedLevel)) {
@@ -409,11 +416,18 @@ function Home({ onLogout, userData }) {
 
   const showBrowserReminderNotification = ({ title, body, notificationKey }) => {
     tocarSomNotificacaoBrowser()
-    setBrowserNotification({
+    const notification = {
       id: `${Date.now()}-${notificationKey || title}`,
       title,
       body
-    })
+    }
+    localStorage.setItem(ACTIVE_BROWSER_NOTIFICATION_STORAGE_KEY, JSON.stringify(notification))
+    setBrowserNotification(notification)
+  }
+
+  const closeBrowserNotification = () => {
+    localStorage.removeItem(ACTIVE_BROWSER_NOTIFICATION_STORAGE_KEY)
+    setBrowserNotification(null)
   }
 
   useEffect(() => {
@@ -430,16 +444,6 @@ function Home({ onLogout, userData }) {
     prepararSomNotificacaoBrowser()
     return undefined
   }, [notificationType])
-
-  useEffect(() => {
-    if (!browserNotification) return undefined
-
-    const timeoutId = window.setTimeout(() => {
-      setBrowserNotification(null)
-    }, 18000)
-
-    return () => window.clearTimeout(timeoutId)
-  }, [browserNotification])
 
   const getApiErrorMessage = async (response, fallback = 'Erro ao comunicar com o servidor') => {
     const text = await response.text()
@@ -3325,7 +3329,7 @@ setPerfil({
             <button
               type="button"
               className="browser-reminder-alert__close"
-              onClick={() => setBrowserNotification(null)}
+              onClick={closeBrowserNotification}
               title="Fechar notificacao"
             >
               Fechar
