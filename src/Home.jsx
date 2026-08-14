@@ -3150,6 +3150,24 @@ setPerfil({
     }
   }
 
+  const excluirUsuarioAdmin = async (usuario) => {
+    const confirmado = window.confirm(`Excluir permanentemente a conta de ${usuario.nome}? Esta ação não pode ser desfeita.`)
+    if (!confirmado) return
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/admin/users/${usuario.id}`, {
+        method: 'DELETE'
+      })
+      if (response.status === 400) throw new Error('Você não pode excluir a própria conta pela área administrativa.')
+      if (!response.ok) throw new Error('Não foi possível excluir a conta.')
+      setAdminUserDetails(null)
+      await carregarDadosAdmin()
+      showToastMessage('Conta excluída com sucesso.')
+    } catch (error) {
+      showToastMessage(error.message)
+    }
+  }
+
   const renderAdmin = () => (
     <>
       <h2 className="section-title">Painel Administrativo</h2>
@@ -3175,7 +3193,10 @@ setPerfil({
                     <span>{usuario.email}</span>
                     <span>{usuario.comorbidade || 'Não informada'}</span>
                     <span>{usuario.medicamentos?.length ? usuario.medicamentos.map((medicamento) => medicamento.nome).join(', ') : 'Nenhum'}</span>
-                    <button type="button" className="btn-save" onClick={() => carregarDetalhesAdmin(usuario.id)}>Ver detalhes</button>
+                    <div className="admin-actions">
+                      <button type="button" className="btn-save" onClick={() => carregarDetalhesAdmin(usuario.id)}>Ver detalhes</button>
+                      <button type="button" className="btn-delete" onClick={() => excluirUsuarioAdmin(usuario)}>Excluir</button>
+                    </div>
                   </div>
                 ))
               )}

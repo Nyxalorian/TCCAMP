@@ -2623,11 +2623,14 @@ button .ui-widget {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  max-height: 60vh;
+  overflow-y: auto;
+  padding-right: 0.5rem;
 }
 
 .usuario-item {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr 1fr;
+  grid-template-columns: 1fr 1fr 1fr 1.25fr auto;
   gap: 1rem;
   padding: 1rem;
   border-radius: 8px;
@@ -3236,6 +3239,23 @@ button .ui-widget { color: currentColor; }
   border-color: rgba(239, 68, 68, 0.34);
   background: #fee2e2;
   color: #dc2626;
+}
+
+.admin-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.admin-actions button {
+  min-width: max-content;
+}
+
+.admin-panel .card:has(ul) ul {
+  max-height: 16rem;
+  overflow-y: auto;
+  margin-bottom: 0;
+  padding-right: 0.5rem;
 }
 
 .historico-icon--perdido {
