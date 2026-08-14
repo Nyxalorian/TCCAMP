@@ -3103,27 +3103,23 @@ setPerfil({
 
   const [adminData, setAdminData] = useState({ usuarios: [], estatisticas: {} })
   const [adminUserDetails, setAdminUserDetails] = useState(null)
+  const [adminPage, setAdminPage] = useState(0)
+  const ADMIN_PAGE_SIZE = 10
 
   const carregarDadosAdmin = async () => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/admin/users`)
       if (response.ok) {
         const usuarios = await response.json()
-        const agora = new Date()
-        const novos = usuarios.filter(u => {
-          const cadastro = new Date(u.dataCadastro || u.createdAt)
-          const diasDiff = (agora - cadastro) / (1000 * 60 * 60 * 24)
-          return diasDiff <= 7
-        }).length
-        
         setAdminData({
           usuarios,
           estatisticas: {
             total: usuarios.length,
-            novos,
-            comSenha: usuarios.filter(u => u.senha && u.senha !== '').length
+            administradores: usuarios.filter(u => u.role === 'ADMIN').length,
+            usuariosComuns: usuarios.filter(u => u.role !== 'ADMIN').length
           }
         })
+        setAdminPage(0)
       } else {
         throw new Error('Backend não disponível')
       }
@@ -3173,8 +3169,27 @@ setPerfil({
       <h2 className="section-title">Painel Administrativo</h2>
         <div className="admin-panel">
           <div className="card">
-            <h3><Widget type="users" className="title-widget" />Usuários Cadastrados ({adminData.usuarios.length})</h3>
-            <div className="usuarios-list">
+            <div className="admin-title-row">
+              <h3><Widget type="users" className="title-widget" />Usuários Cadastrados ({adminData.usuarios.length})</h3>
+              {adminData.usuarios.length > ADMIN_PAGE_SIZE && (
+                <div className="admin-pagination">
+                  <button
+                    type="button"
+                    className="btn-cancel"
+                    onClick={() => setAdminPage((page) => Math.max(0, page - 1))}
+                    disabled={adminPage === 0}
+                  >Anterior</button>
+                  <span>Página {adminPage + 1} de {Math.ceil(adminData.usuarios.length / ADMIN_PAGE_SIZE)}</span>
+                  <button
+                    type="button"
+                    className="btn-save"
+                    onClick={() => setAdminPage((page) => Math.min(Math.ceil(adminData.usuarios.length / ADMIN_PAGE_SIZE) - 1, page + 1))}
+                    disabled={adminPage >= Math.ceil(adminData.usuarios.length / ADMIN_PAGE_SIZE) - 1}
+                  >Próxima</button>
+                </div>
+              )}
+            </div>
+            <div className="admin-users-table">
               <div className="usuario-item header">
                 <span>Nome</span>
                 <span>Email</span>
@@ -3182,12 +3197,15 @@ setPerfil({
                 <span>Medicamentos</span>
                 <span>Ações</span>
               </div>
+              <div className="usuarios-list">
               {adminData.usuarios.length === 0 ? (
                 <div className="usuario-item">
                   <span colSpan="4" style={{textAlign: 'center', color: '#666'}}>Nenhum usuário cadastrado ainda</span>
                 </div>
               ) : (
-                adminData.usuarios.map((usuario) => (
+                adminData.usuarios
+                  .slice(adminPage * ADMIN_PAGE_SIZE, (adminPage + 1) * ADMIN_PAGE_SIZE)
+                  .map((usuario) => (
                   <div key={usuario.id} className="usuario-item">
                     <span>{usuario.nome}</span>
                     <span>{usuario.email}</span>
@@ -3200,6 +3218,7 @@ setPerfil({
                   </div>
                 ))
               )}
+              </div>
             </div>
           </div>
 
@@ -3216,6 +3235,14 @@ setPerfil({
                   <li key={medicamento.id}>{medicamento.nome} — {medicamento.descricao} ({medicamento.statusMedicamento})</li>
                 ))}</ul>
               )}
+              <h4>Lembretes cadastrados</h4>
+              {adminUserDetails.lembretes?.length === 0 ? (
+                <p>Nenhum lembrete cadastrado.</p>
+              ) : (
+                <ul>{adminUserDetails.lembretes?.map((lembrete) => (
+                  <li key={lembrete.id}>{lembrete.titulo} — {lembrete.data} às {lembrete.horario}</li>
+                ))}</ul>
+              )}
             </div>
           )}
           
@@ -3226,12 +3253,12 @@ setPerfil({
               <span>{adminData.estatisticas.total || 0}</span>
             </div>
             <div className="item">
-              <span>Novos cadastros (7 dias):</span>
-              <span>{adminData.estatisticas.novos || 0}</span>
+              <span>Usuários comuns:</span>
+              <span>{adminData.estatisticas.usuariosComuns || 0}</span>
             </div>
             <div className="item">
-              <span>Usuários com senha definida:</span>
-              <span>{adminData.estatisticas.comSenha || 0}</span>
+              <span>Administradores:</span>
+              <span>{adminData.estatisticas.administradores || 0}</span>
             </div>
           </div>
         </div>

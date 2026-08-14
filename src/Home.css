@@ -2619,18 +2619,33 @@ button .ui-widget {
   margin: 0 auto;
 }
 
+/* O estilo global de .card tem altura fixa de 400px; no painel administrativo
+   isso cortava a lista antes dos 10 registros da página. */
+.admin-panel > .card {
+  height: auto;
+  max-height: 700px;
+  overflow: hidden;
+  text-align: left;
+}
+
+.admin-users-table {
+  width: 100%;
+  border-radius: 8px;
+}
+
 .usuarios-list {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  max-height: 60vh;
+
+  max-height: 550px;
   overflow-y: auto;
-  padding-right: 0.5rem;
+  overflow-x: hidden;
 }
 
 .usuario-item {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr 1.25fr auto;
+  grid-template-columns: minmax(125px, 0.8fr) minmax(180px, 1.15fr) minmax(190px, 1.2fr) minmax(180px, 1.15fr) 232px;
   gap: 1rem;
   padding: 1rem;
   border-radius: 8px;
@@ -2670,6 +2685,11 @@ button .ui-widget {
 
 /* Responsividade para admin */
 @media (max-width: 768px) {
+  .admin-title-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
   .usuario-item {
     grid-template-columns: 1fr;
     gap: 0.5rem;
@@ -3249,6 +3269,31 @@ button .ui-widget { color: currentColor; }
 
 .admin-actions button {
   min-width: max-content;
+}
+
+.admin-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin: 0;
+}
+
+.admin-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.admin-title-row h3 {
+  margin: 0;
+}
+
+.admin-pagination button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
 .admin-panel .card:has(ul) ul {
