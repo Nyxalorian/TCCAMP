@@ -5,6 +5,7 @@ import Login from './Login'
 import Cadastro from './Cadastro'
 import Home from './Home'
 import Onboarding from './Onboarding'
+import Landing from './Landing'
 import './App.css'
 import './Accessibility.css'
 import API_CONFIG from './config'
@@ -69,7 +70,7 @@ function App() {
     return stored ? JSON.parse(stored) : null
   }
 
-  const [currentPage, setCurrentPage] = useState('cadastro')
+  const [currentPage, setCurrentPage] = useState('landing')
   const [isLoggedIn, setIsLoggedIn] = useState(() => {
     return sessionStorage.getItem('isLoggedIn') === 'true'
       && Boolean(sessionStorage.getItem('authToken'))
@@ -203,6 +204,7 @@ function App() {
     ]
     sessionKeys.forEach((key) => sessionStorage.removeItem(key))
     localStorage.removeItem('usuario')
+    setCurrentPage('landing')
   }
 
   useEffect(() => {
@@ -249,6 +251,10 @@ function App() {
         <Login onGoToCadastro={() => setCurrentPage('cadastro')} onLogin={handleLogin} />
       </div>
     )
+  }
+
+  if (currentPage === 'landing') {
+    return <Landing onStart={() => setCurrentPage('cadastro')} />
   }
 
   return (

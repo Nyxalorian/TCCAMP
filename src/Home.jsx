@@ -2,7 +2,6 @@ import { useState, useEffect, useMemo } from 'react'
 import './Home.css'
 import './Adicionar.css'
 import './Accessibility.css'
-import Sobre from './Sobre'
 import pharmalifeLogo from './assets/pharmalife-logo.png'
 import API_CONFIG from './config'
 import { apiFetch as fetch } from './api'
@@ -3274,7 +3273,6 @@ setPerfil({
       case 'adicionar-medicamento': return renderAdicionar('medicamento')
       case 'adicionar-lembrete': return renderAdicionar('lembrete')
       case 'ajuda': return renderAjuda()
-      case 'sobre': return <Sobre />
       case 'admin': return renderAdmin()
       default: return renderDashboard()
     }
@@ -3329,13 +3327,6 @@ setPerfil({
           >
             <Widget type="settings" className="nav-icon" />
             Configurações
-          </button>
-          <button 
-            className={activeSection === 'sobre' ? 'active' : ''} 
-            onClick={() => setActiveSection('sobre')}
-          >
-            <Widget type="users" className="nav-icon" />
-            Sobre Nós
           </button>
           <button 
             className={activeSection === 'ajuda' ? 'active' : ''} 
