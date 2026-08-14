@@ -36,6 +36,7 @@ function normalizeUser(data) {
     foto: data?.foto || '',
     dataNascimento: data?.dataNascimento || '',
     comorbidade: data?.comorbidade || '',
+    role: data?.role === 'ADMIN' ? 'ADMIN' : 'USER',
     tipoNotificacao: normalizeNotificationType(data?.tipoNotificacao),
   }
 }
@@ -48,6 +49,7 @@ function saveUserSession(usuario) {
   sessionStorage.setItem('userEmail', usuario.email)
   sessionStorage.setItem('userPhoto', usuario.foto || '')
   sessionStorage.setItem('notificationType', normalizeNotificationType(usuario.tipoNotificacao))
+  sessionStorage.setItem('userRole', usuario.role)
 }
 
 function Widget({ className = '' }) {
@@ -196,7 +198,7 @@ function App() {
       'fcmToken',
       'notificationType',
       'agendaId',
-      'isAdmin',
+      'userRole',
       'authToken'
     ]
     sessionKeys.forEach((key) => sessionStorage.removeItem(key))

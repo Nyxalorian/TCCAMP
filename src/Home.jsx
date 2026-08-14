@@ -302,7 +302,7 @@ function TablerIcon({ name }) {
 function Home({ onLogout, userData }) {
 
   const [activeSection, setActiveSection] = useState('dashboard')
-  const [isAdmin] = useState(() => sessionStorage.getItem('isAdmin') === 'true')
+  const isAdmin = userData?.role === 'ADMIN'
 
   const [novoMedicamento, setNovoMedicamento] = useState({
     nome: '',
@@ -3102,10 +3102,11 @@ setPerfil({
   }, [activeSection])
 
   const [adminData, setAdminData] = useState({ usuarios: [], estatisticas: {} })
+  const [adminUserDetails, setAdminUserDetails] = useState(null)
 
   const carregarDadosAdmin = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/usuarios`)
+      const response = await fetch(`${API_BASE_URL}/api/admin/users`)
       if (response.ok) {
         const usuarios = await response.json()
         const agora = new Date()
@@ -3126,17 +3127,9 @@ setPerfil({
       } else {
         throw new Error('Backend não disponível')
       }
-    } catch {
-      // Fallback para localStorage
-      const usuariosCadastrados = JSON.parse(localStorage.getItem('usuariosCadastrados') || '[]')
-      setAdminData({
-        usuarios: usuariosCadastrados,
-        estatisticas: {
-          total: usuariosCadastrados.length,
-          novos: 0,
-          comSenha: usuariosCadastrados.filter(u => u.senha).length
-        }
-      })
+    } catch (error) {
+      setAdminData({ usuarios: [], estatisticas: {} })
+      showToastMessage(error.message || 'Acesso administrativo indisponível.')
     }
   }
 
@@ -3145,6 +3138,17 @@ setPerfil({
       carregarDadosAdmin()
     }
   }, [activeSection])
+
+  const carregarDetalhesAdmin = async (id) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/admin/users/${id}`)
+      if (response.status === 403) throw new Error('Acesso negado à área administrativa.')
+      if (!response.ok) throw new Error('Não foi possível carregar os dados do usuário.')
+      setAdminUserDetails(await response.json())
+    } catch (error) {
+      showToastMessage(error.message)
+    }
+  }
 
   const renderAdmin = () => (
     <>
@@ -3156,25 +3160,43 @@ setPerfil({
               <div className="usuario-item header">
                 <span>Nome</span>
                 <span>Email</span>
-                <span>Data Cadastro</span>
-                <span>Senha</span>
+                <span>Comorbidades</span>
+                <span>Medicamentos</span>
+                <span>Ações</span>
               </div>
               {adminData.usuarios.length === 0 ? (
                 <div className="usuario-item">
                   <span colSpan="4" style={{textAlign: 'center', color: '#666'}}>Nenhum usuário cadastrado ainda</span>
                 </div>
               ) : (
-                adminData.usuarios.map((usuario, index) => (
-                  <div key={index} className="usuario-item">
+                adminData.usuarios.map((usuario) => (
+                  <div key={usuario.id} className="usuario-item">
                     <span>{usuario.nome}</span>
                     <span>{usuario.email}</span>
-                    <span>{new Date(usuario.dataCadastro).toLocaleDateString('pt-BR')}</span>
-                    <span>******</span>
+                    <span>{usuario.comorbidade || 'Não informada'}</span>
+                    <span>{usuario.medicamentos?.length ? usuario.medicamentos.map((medicamento) => medicamento.nome).join(', ') : 'Nenhum'}</span>
+                    <button type="button" className="btn-save" onClick={() => carregarDetalhesAdmin(usuario.id)}>Ver detalhes</button>
                   </div>
                 ))
               )}
             </div>
           </div>
+
+          {adminUserDetails && (
+            <div className="card">
+              <h3>{adminUserDetails.nome}</h3>
+              <p><strong>E-mail:</strong> {adminUserDetails.email}</p>
+              <p><strong>Comorbidades:</strong> {adminUserDetails.comorbidade || 'Não informada'}</p>
+              <h4>Medicamentos cadastrados</h4>
+              {adminUserDetails.medicamentos.length === 0 ? (
+                <p>Nenhum medicamento cadastrado.</p>
+              ) : (
+                <ul>{adminUserDetails.medicamentos.map((medicamento) => (
+                  <li key={medicamento.id}>{medicamento.nome} — {medicamento.descricao} ({medicamento.statusMedicamento})</li>
+                ))}</ul>
+              )}
+            </div>
+          )}
           
           <div className="card">
             <h3><Widget type="chart" className="title-widget" />Estatísticas</h3>
