@@ -7,7 +7,7 @@ import { apiFetch as fetch } from './api'
 
 const API_BASE_URL = API_CONFIG.BASE_URL
 
-function Login({ onGoToCadastro, onLogin }) {
+function Login({ onGoToCadastro, onGoToRecuperarSenha, onLogin }) {
   const [formData, setFormData] = useState({
     email: '',
     senha: ''
@@ -99,6 +99,9 @@ function Login({ onGoToCadastro, onLogin }) {
               required
             />
           </div>
+          <button type="button" className="forgot-password-link" onClick={onGoToRecuperarSenha}>
+            Esqueci minha senha
+          </button>
 
           <button type="submit" className="login-btn" disabled={loading}>
             {loading ? 'Entrando...' : 'Login'}

@@ -1,0 +1,11 @@
+﻿.recovery-form label { color: #374151; font-size: 14px; font-weight: 700; }
+.recovery-code { text-align: center; letter-spacing: .45em; font-size: 22px !important; font-weight: 700; }
+.recovery-message { margin: 0 0 18px; padding: 12px 14px; border-radius: 8px; font-size: 14px; line-height: 1.45; }
+.recovery-message-success { color: #166534; background: #f0fdf4; border: 1px solid #bbf7d0; }
+.recovery-message-error { color: #991b1b; background: #fef2f2; border: 1px solid #fecaca; }
+.recovery-link, .recovery-back { border: 0; background: transparent; color: #1a3a6b; cursor: pointer; font-size: 14px; font-weight: 700; }
+.recovery-link { align-self: center; padding: 4px; }
+.recovery-back { display: block; margin: 22px auto 0; padding: 6px; }
+.recovery-link:hover, .recovery-back:hover { color: #143058; text-decoration: underline; }
+.recovery-link:disabled { cursor: wait; opacity: .6; }
+.recovery-success-button { width: 100%; }

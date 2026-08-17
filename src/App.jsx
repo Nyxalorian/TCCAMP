@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { getRedirectResult } from 'firebase/auth'
 import { auth } from './firebase'
 import Login from './Login'
+import EsqueciSenha from './EsqueciSenha'
 import Cadastro from './Cadastro'
 import Home from './Home'
 import Onboarding from './Onboarding'
@@ -248,11 +249,24 @@ function App() {
             {accessibilityMode ? 'Modo Normal' : 'Letras Grandes'}
           </button>
         </div>
-        <Login onGoToCadastro={() => setCurrentPage('cadastro')} onLogin={handleLogin} />
+        <Login onGoToCadastro={() => setCurrentPage('cadastro')} onGoToRecuperarSenha={() => setCurrentPage('recuperar-senha')} onLogin={handleLogin} />
       </div>
     )
   }
 
+  if (currentPage === 'recuperar-senha') {
+    return (
+      <div className={`auth-shell ${accessibilityMode ? 'accessibility-mode' : ''}`.trim()}>
+        <div className="accessibility-header">
+          <button className="accessibility-toggle-login" onClick={toggleAccessibilityMode}>
+            <Widget className="btn-icon" />
+            {accessibilityMode ? 'Modo Normal' : 'Letras Grandes'}
+          </button>
+        </div>
+        <EsqueciSenha onGoToLogin={() => setCurrentPage('login')} />
+      </div>
+    )
+  }
   if (currentPage === 'landing') {
     return <Landing onStart={() => setCurrentPage('cadastro')} />
   }

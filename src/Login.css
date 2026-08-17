@@ -553,3 +553,6 @@
     padding: 18px;
   }
 }
+
+.forgot-password-link { align-self: flex-end; padding: 0; border: 0; background: transparent; color: #1a3a6b; cursor: pointer; font-size: 14px; font-weight: 700; }
+.forgot-password-link:hover { color: #143058; text-decoration: underline; }
