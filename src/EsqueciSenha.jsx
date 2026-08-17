@@ -31,7 +31,9 @@ function EsqueciSenha({ onGoToLogin }) {
     try {
       await acao()
     } catch (error) {
-      setErro(error.message || 'Não foi possível concluir a solicitação.')
+      setErro(error.name === 'AbortError'
+        ? 'O servidor demorou demais para responder. Tente novamente.'
+        : error.message || 'Não foi possível concluir a solicitação.')
     } finally {
       setLoading(false)
     }
