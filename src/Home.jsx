@@ -3103,6 +3103,11 @@ setPerfil({
   const [adminData, setAdminData] = useState({ usuarios: [], estatisticas: {} })
   const [adminUserDetails, setAdminUserDetails] = useState(null)
   const [adminPage, setAdminPage] = useState(0)
+  const [adminSaving, setAdminSaving] = useState(false)
+  const [showAdminEditModal, setShowAdminEditModal] = useState(false)
+  const [adminEditForm, setAdminEditForm] = useState({
+    nome: '', email: '', dataNascimento: '', comorbidade: '', novaSenha: ''
+  })
   const ADMIN_PAGE_SIZE = 10
 
   const carregarDadosAdmin = async () => {
@@ -3163,7 +3168,115 @@ setPerfil({
     }
   }
 
-  const renderAdmin = () => (
+  const formatarDataAdmin = (data) => {
+    if (!data) return 'Não informado'
+    const dataNormalizada = String(data).slice(0, 10)
+    const valor = new Date(`${dataNormalizada}T00:00:00`)
+    return Number.isNaN(valor.getTime()) ? dataNormalizada : valor.toLocaleDateString('pt-BR')
+  }
+
+  const abrirEdicaoAdmin = () => {
+    setAdminEditForm({
+      nome: adminUserDetails.nome || '',
+      email: adminUserDetails.email || '',
+      dataNascimento: adminUserDetails.dataNascimento || '',
+      comorbidade: adminUserDetails.comorbidade || '',
+      novaSenha: ''
+    })
+    setShowAdminEditModal(true)
+  }
+
+  const salvarEdicaoAdmin = async (event) => {
+    event.preventDefault()
+    setAdminSaving(true)
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/admin/users/${adminUserDetails.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nome: adminEditForm.nome.trim(),
+          email: adminEditForm.email.trim(),
+          dataNascimento: adminEditForm.dataNascimento || null,
+          comorbidade: adminEditForm.comorbidade.trim(),
+          senha: adminEditForm.novaSenha || null
+        })
+      })
+      if (!response.ok) throw new Error(await getApiErrorMessage(response, 'Não foi possível atualizar o usuário.'))
+      setShowAdminEditModal(false)
+      await carregarDetalhesAdmin(adminUserDetails.id)
+      await carregarDadosAdmin()
+      showToastMessage('Usuário atualizado com sucesso.')
+    } catch (error) {
+      showToastMessage(error.message || 'Não foi possível atualizar o usuário.')
+    } finally {
+      setAdminSaving(false)
+    }
+  }
+
+  const renderAdminUserDetails = () => {
+    const medicamentos = adminUserDetails.medicamentos || []
+    const lembretes = adminUserDetails.lembretes || []
+
+    return (
+      <section className="admin-user-details">
+        <button type="button" className="admin-back-button" onClick={() => setAdminUserDetails(null)}>← Voltar para a lista</button>
+        <div className="admin-profile-card">
+          <div className="admin-profile-identity">
+            <div className="admin-profile-avatar">{(adminUserDetails.nome || 'U').charAt(0).toUpperCase()}</div>
+            <div>
+              <span className="admin-role-badge">{adminUserDetails.role === 'ADMIN' ? 'Administrador' : 'Usuário'}</span>
+              <h2>{adminUserDetails.nome}</h2>
+              <p>{adminUserDetails.email}</p>
+            </div>
+          </div>
+          <div className="admin-profile-actions">
+            <button type="button" className="admin-edit-button" onClick={abrirEdicaoAdmin} disabled={adminSaving}><Widget type="edit" /> Editar usuário</button>
+            <button type="button" className="admin-delete-button" onClick={() => excluirUsuarioAdmin(adminUserDetails)} disabled={adminSaving}><Widget type="delete" /> Excluir usuário</button>
+          </div>
+        </div>
+        <div className="admin-details-card">
+          <div className="admin-detail-row"><span className="admin-detail-icon">@</span><strong>E-mail</strong><span>{adminUserDetails.email}</span></div>
+          <div className="admin-detail-row"><span className="admin-detail-icon">◷</span><strong>Data de nascimento</strong><span>{formatarDataAdmin(adminUserDetails.dataNascimento)}</span></div>
+          <div className="admin-detail-row"><span className="admin-detail-icon">♡</span><strong>Comorbidades</strong><span>{adminUserDetails.comorbidade || 'Nenhuma comorbidade informada'}</span></div>
+        </div>
+        <div className="admin-details-grid">
+          <div className="admin-details-card admin-collection-card">
+            <h3><Widget type="pill" /> Medicamentos cadastrados <span>{medicamentos.length}</span></h3>
+            {medicamentos.length === 0 ? <p className="admin-empty">Nenhum medicamento cadastrado.</p> : medicamentos.map((medicamento) => (
+              <div key={medicamento.id} className="admin-collection-item"><div><strong>{medicamento.nome}</strong><p>{medicamento.descricao || medicamento.complemento || 'Sem descrição'}</p></div><span className="admin-status">{medicamento.statusMedicamento || 'Sem status'}</span></div>
+            ))}
+          </div>
+          <div className="admin-details-card admin-collection-card">
+            <h3><Widget type="bell" /> Lembretes cadastrados <span>{lembretes.length}</span></h3>
+            {lembretes.length === 0 ? <p className="admin-empty">Nenhum lembrete cadastrado.</p> : lembretes.map((lembrete) => (
+              <div key={lembrete.id} className="admin-collection-item"><div><strong>{lembrete.titulo}</strong><p>{lembrete.descricao || 'Sem descrição'}</p></div><time>{formatarDataAdmin(lembrete.data)}{lembrete.horario ? ` às ${String(lembrete.horario).slice(0, 5)}` : ''}</time></div>
+            ))}
+          </div>
+        </div>
+        {showAdminEditModal && (
+          <div className="modal-overlay" onClick={() => setShowAdminEditModal(false)}>
+            <div className="modal-content admin-edit-modal" onClick={(event) => event.stopPropagation()}>
+              <h3>Editar usuário</h3>
+              <p>Altere somente os dados necessários. Deixe a senha vazia para mantê-la.</p>
+              <form onSubmit={salvarEdicaoAdmin}>
+                <label>Nome<input value={adminEditForm.nome} onChange={(event) => setAdminEditForm({...adminEditForm, nome: event.target.value})} required /></label>
+                <label>E-mail<input type="email" value={adminEditForm.email} onChange={(event) => setAdminEditForm({...adminEditForm, email: event.target.value})} required /></label>
+                <label>Data de nascimento<input type="date" value={adminEditForm.dataNascimento} onChange={(event) => setAdminEditForm({...adminEditForm, dataNascimento: event.target.value})} /></label>
+                <label>Comorbidades<input value={adminEditForm.comorbidade} onChange={(event) => setAdminEditForm({...adminEditForm, comorbidade: event.target.value})} /></label>
+                <label>Nova senha <small>(opcional)</small><input type="password" minLength="6" value={adminEditForm.novaSenha} onChange={(event) => setAdminEditForm({...adminEditForm, novaSenha: event.target.value})} /></label>
+                <div className="modal-buttons"><button type="button" className="btn-cancel" onClick={() => setShowAdminEditModal(false)}>Cancelar</button><button type="submit" className="btn-save" disabled={adminSaving}>{adminSaving ? 'Salvando...' : 'Salvar alterações'}</button></div>
+              </form>
+            </div>
+          </div>
+        )}
+      </section>
+    )
+  }
+
+  const renderAdmin = () => {
+    if (adminUserDetails) return renderAdminUserDetails()
+    const totalPaginas = Math.ceil(adminData.usuarios.length / ADMIN_PAGE_SIZE)
+    return (
     <>
       <h2 className="section-title">Painel Administrativo</h2>
         <div className="admin-panel">
@@ -3178,12 +3291,12 @@ setPerfil({
                     onClick={() => setAdminPage((page) => Math.max(0, page - 1))}
                     disabled={adminPage === 0}
                   >Anterior</button>
-                  <span>Página {adminPage + 1} de {Math.ceil(adminData.usuarios.length / ADMIN_PAGE_SIZE)}</span>
+                  <span>Página {adminPage + 1} de {totalPaginas}</span>
                   <button
                     type="button"
                     className="btn-save"
-                    onClick={() => setAdminPage((page) => Math.min(Math.ceil(adminData.usuarios.length / ADMIN_PAGE_SIZE) - 1, page + 1))}
-                    disabled={adminPage >= Math.ceil(adminData.usuarios.length / ADMIN_PAGE_SIZE) - 1}
+                    onClick={() => setAdminPage((page) => Math.min(totalPaginas - 1, page + 1))}
+                    disabled={adminPage >= totalPaginas - 1}
                   >Próxima</button>
                 </div>
               )}
@@ -3191,7 +3304,7 @@ setPerfil({
             <div className="admin-users-table">
               <div className="usuario-item header">
                 <span>Nome</span>
-                <span>Email</span>
+                <span>E-mail</span>
                 <span>Comorbidades</span>
                 <span>Medicamentos</span>
                 <span>Ações</span>
@@ -3199,20 +3312,19 @@ setPerfil({
               <div className="usuarios-list">
               {adminData.usuarios.length === 0 ? (
                 <div className="usuario-item">
-                  <span colSpan="4" style={{textAlign: 'center', color: '#666'}}>Nenhum usuário cadastrado ainda</span>
+                  <span className="admin-list-empty">Nenhum usuário cadastrado ainda</span>
                 </div>
               ) : (
                 adminData.usuarios
                   .slice(adminPage * ADMIN_PAGE_SIZE, (adminPage + 1) * ADMIN_PAGE_SIZE)
                   .map((usuario) => (
                   <div key={usuario.id} className="usuario-item">
-                    <span>{usuario.nome}</span>
-                    <span>{usuario.email}</span>
-                    <span>{usuario.comorbidade || 'Não informada'}</span>
-                    <span>{usuario.medicamentos?.length ? usuario.medicamentos.map((medicamento) => medicamento.nome).join(', ') : 'Nenhum'}</span>
+                    <span data-label="Nome">{usuario.nome}</span>
+                    <span data-label="E-mail">{usuario.email}</span>
+                    <span data-label="Comorbidades">{usuario.comorbidade || 'Não informada'}</span>
+                    <span data-label="Medicamentos">{usuario.medicamentos?.length ? usuario.medicamentos.map((medicamento) => medicamento.nome).join(', ') : 'Nenhum'}</span>
                     <div className="admin-actions">
-                      <button type="button" className="btn-save" onClick={() => carregarDetalhesAdmin(usuario.id)}>Ver detalhes</button>
-                      <button type="button" className="btn-delete" onClick={() => excluirUsuarioAdmin(usuario)}>Excluir</button>
+                      <button type="button" className="admin-details-button" onClick={() => carregarDetalhesAdmin(usuario.id)}>Ver detalhes</button>
                     </div>
                   </div>
                 ))
@@ -3221,30 +3333,6 @@ setPerfil({
             </div>
           </div>
 
-          {adminUserDetails && (
-            <div className="card">
-              <h3>{adminUserDetails.nome}</h3>
-              <p><strong>E-mail:</strong> {adminUserDetails.email}</p>
-              <p><strong>Comorbidades:</strong> {adminUserDetails.comorbidade || 'Não informada'}</p>
-              <h4>Medicamentos cadastrados</h4>
-              {adminUserDetails.medicamentos.length === 0 ? (
-                <p>Nenhum medicamento cadastrado.</p>
-              ) : (
-                <ul>{adminUserDetails.medicamentos.map((medicamento) => (
-                  <li key={medicamento.id}>{medicamento.nome} — {medicamento.descricao} ({medicamento.statusMedicamento})</li>
-                ))}</ul>
-              )}
-              <h4>Lembretes cadastrados</h4>
-              {adminUserDetails.lembretes?.length === 0 ? (
-                <p>Nenhum lembrete cadastrado.</p>
-              ) : (
-                <ul>{adminUserDetails.lembretes?.map((lembrete) => (
-                  <li key={lembrete.id}>{lembrete.titulo} — {lembrete.data} às {lembrete.horario}</li>
-                ))}</ul>
-              )}
-            </div>
-          )}
-          
           <div className="card">
             <h3><Widget type="chart" className="title-widget" />Estatísticas</h3>
             <div className="item">
@@ -3263,6 +3351,7 @@ setPerfil({
         </div>
       </>
     )
+  }
 
   const renderContent = () => {
     switch(activeSection) {
