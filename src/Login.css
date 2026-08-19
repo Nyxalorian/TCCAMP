@@ -495,6 +495,19 @@
   display: none;
 }
 
+.google-login-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.google-icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
 .signup-link {
   display: flex;
   flex-wrap: wrap;
@@ -540,3 +553,6 @@
     padding: 18px;
   }
 }
+
+.forgot-password-link { align-self: flex-end; padding: 0; border: 0; background: transparent; color: #1a3a6b; cursor: pointer; font-size: 14px; font-weight: 700; }
+.forgot-password-link:hover { color: #143058; text-decoration: underline; }

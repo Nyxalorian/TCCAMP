@@ -1,18 +1,19 @@
 import { useState, useEffect } from 'react'
 import './Cadastro.css'
 import API_CONFIG from './config'
+import { apiFetch as fetch } from './api'
 
 const API_BASE_URL = API_CONFIG.BASE_URL
+const ONBOARDING_PENDING_DATE = '1900-01-01'
 
-function Cadastro({ onGoToLogin }) {
+function Cadastro({ onGoToLogin, onCadastroSuccess }) {
   const [formData, setFormData] = useState({
     nome: '',
     email: '',
     senha: '',
-    confirmarSenha: '',
-    idade: '',
-    comorbidade: ''
+    confirmarSenha: ''
   })
+  const [loading, setLoading] = useState(false)
 
   useEffect(() => {
     document.title = 'PharmaLife - Cadastro'
@@ -27,12 +28,14 @@ function Cadastro({ onGoToLogin }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    
+
     if (formData.senha !== formData.confirmarSenha) {
-      alert('As senhas não coincidem!')
+      alert('As senhas nao coincidem!')
       return
     }
-    
+
+    setLoading(true)
+
     try {
       const response = await fetch(`${API_BASE_URL}/api/usuarios`, {
         method: 'POST',
@@ -43,11 +46,11 @@ function Cadastro({ onGoToLogin }) {
           nome: formData.nome,
           email: formData.email,
           senha: formData.senha,
-          idade: parseInt(formData.idade) || null,
-          comorbidade: formData.comorbidade || null
+          dataNascimento: ONBOARDING_PENDING_DATE,
+          comorbidade: ''
         })
       })
-      
+
       const responseText = await response.text()
       let data = {}
       try {
@@ -55,31 +58,23 @@ function Cadastro({ onGoToLogin }) {
       } catch {
         data = { erro: responseText }
       }
-      
+
       if (response.ok) {
-        alert('Conta criada com sucesso! Faça login para continuar.')
-        onGoToLogin()
+        onCadastroSuccess(data)
       } else {
         alert(data.erro || 'Erro ao criar conta')
       }
     } catch (error) {
       console.error('Erro:', error)
-      alert('Erro de conexão. Verifique se o servidor está rodando.')
+      alert('Erro de conexao. Verifique se o servidor esta rodando.')
+    } finally {
+      setLoading(false)
     }
-    
-    setFormData({
-      nome: '',
-      email: '',
-      senha: '',
-      confirmarSenha: '',
-      idade: '',
-      comorbidade: ''
-    })
   }
 
   return (
     <div className="cadastro-container">
-      <div className="cadastro-card">
+      <div className="cadastro-card cadastro-card--compact">
         <div className="auth-brand">
           <span className="auth-logo">+</span>
           <div>
@@ -87,8 +82,8 @@ function Cadastro({ onGoToLogin }) {
             <p>Criar conta</p>
           </div>
         </div>
-        
-        <form onSubmit={handleSubmit} className="cadastro-form">
+
+        <form onSubmit={handleSubmit} className="cadastro-form cadastro-form--compact">
           <div className="input-group">
             <div className="input-icon">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
@@ -98,46 +93,13 @@ function Cadastro({ onGoToLogin }) {
             <input
               type="text"
               name="nome"
-              placeholder="Nome de usuário"
+              placeholder="Nome de usuario"
               value={formData.nome}
               onChange={handleChange}
               required
             />
           </div>
-          
-          <div className="input-group">
-            <div className="input-icon">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                <path d="M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22A10,10 0 0,1 2,12A10,10 0 0,1 12,2M12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20A8,8 0 0,0 20,12A8,8 0 0,0 12,4M12,6A6,6 0 0,1 18,12A6,6 0 0,1 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6M12,8A4,4 0 0,0 8,12A4,4 0 0,0 12,16A4,4 0 0,0 16,12A4,4 0 0,0 12,8Z" fill="#999"/>
-              </svg>
-            </div>
-            <input
-              type="number"
-              name="idade"
-              placeholder="Idade"
-              value={formData.idade}
-              onChange={handleChange}
-              min="1"
-              max="120"
-              required
-            />
-          </div>
-          
-          <div className="input-group">
-            <div className="input-icon">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                <path d="M19,3H5C3.89,3 3,3.89 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V5C21,3.89 20.1,3 19,3M19,5V19H5V5H19Z" fill="#999"/>
-              </svg>
-            </div>
-            <input
-              type="text"
-              name="comorbidade"
-              placeholder="Comorbidade (opcional)"
-              value={formData.comorbidade}
-              onChange={handleChange}
-            />
-          </div>
-          
+
           <div className="input-group">
             <div className="input-icon">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
@@ -153,7 +115,7 @@ function Cadastro({ onGoToLogin }) {
               required
             />
           </div>
-          
+
           <div className="input-group">
             <div className="input-icon">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
@@ -169,7 +131,7 @@ function Cadastro({ onGoToLogin }) {
               required
             />
           </div>
-          
+
           <div className="input-group">
             <div className="input-icon">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
@@ -185,14 +147,14 @@ function Cadastro({ onGoToLogin }) {
               required
             />
           </div>
-          
-          <button type="submit" className="cadastro-btn">
-            Cadastrar
+
+          <button type="submit" className="cadastro-btn" disabled={loading}>
+            {loading ? 'Criando conta...' : 'Cadastrar'}
           </button>
         </form>
-        
+
         <div className="login-link">
-          <span>Já tem conta? </span>
+          <span>Ja tem conta? </span>
           <button type="button" className="login-account-btn" onClick={onGoToLogin}>
             Fazer login
           </button>

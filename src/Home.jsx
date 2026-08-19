@@ -1,12 +1,27 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import './Home.css'
 import './Adicionar.css'
 import './Accessibility.css'
-import Sobre from './Sobre'
 import pharmalifeLogo from './assets/pharmalife-logo.png'
 import API_CONFIG from './config'
+import { apiFetch as fetch } from './api'
+import {
+  garantirPermissaoNotificacao,
+  mostrarNotificacaoLocal,
+  normalizeNotificationType,
+  NOTIFICATION_TYPES,
+  prepararSomNotificacaoBrowser,
+  tocarSomNotificacaoBrowser,
+  solicitarPermissaoNotificacao
+} from './notificationService'
+
 
 const API_BASE_URL = API_CONFIG.BASE_URL
+const REMINDER_NOTIFICATION_STORAGE_KEY = 'lembretesNotificados'
+const MEDICATION_NOTIFICATION_STORAGE_KEY = 'medicamentosNotificados'
+const ACTIVE_BROWSER_NOTIFICATION_STORAGE_KEY = 'notificacaoBrowserAtiva'
+const REMINDER_NOTIFICATION_CHECK_INTERVAL_MS = 15 * 1000
+const REMINDER_NOTIFICATION_GRACE_MS = 60 * 60 * 1000
 
 const accessibilityScales = {
   normal: { font: 1, spacing: 1, icon: 1, tap: 1 },
@@ -21,6 +36,14 @@ const colorVisionModes = {
   tritanopia: 'Tritanopia',
   'high-contrast': 'Alto Contraste'
 }
+
+const ignoreReasonOptions = [
+  'Médico orientou suspensão',
+  'Estou sem o medicamento',
+  'Não preciso tomar hoje',
+  'Exame ou procedimento médico',
+  'Outro motivo'
+]
 
 const widgetLabels = {
   add: '+',
@@ -80,7 +103,7 @@ const widgetIcons = {
     <svg viewBox="0 0 24 24" focusable="false">
       <circle cx="12" cy="12" r="9" />
       <path d="M12 7v5" />
-      <path d="M15 15h4" />
+      <path d="M12 12h5" />
     </svg>
   ),
   trend: (
@@ -171,6 +194,68 @@ function Widget({ type, className = '' }) {
   )
 }
 
+const getReminderNotificationKey = (lembrete) => {
+  return [
+    lembrete?.usuario || 'usuario',
+    lembrete?.id || '',
+    lembrete?.data || '',
+    lembrete?.horario || ''
+  ].map(String).join('|')
+}
+
+const getReminderTimestamp = (lembrete) => {
+  if (!lembrete?.data) return null
+  const date = new Date(`${lembrete.data}T${lembrete.horario || '00:00'}`)
+  const timestamp = date.getTime()
+  return Number.isNaN(timestamp) ? null : timestamp
+}
+
+const formatReminderNotificationTime = (lembrete) => {
+  const timestamp = getReminderTimestamp(lembrete)
+  if (!timestamp) return [lembrete?.data, lembrete?.horario].filter(Boolean).join(' ')
+
+  return new Intl.DateTimeFormat('pt-BR', {
+    dateStyle: 'short',
+    timeStyle: 'short'
+  }).format(new Date(timestamp))
+}
+
+const getStoredNotificationKeys = (storageKey) => {
+  try {
+    const stored = JSON.parse(localStorage.getItem(storageKey) || '[]')
+    return Array.isArray(stored) ? stored.map(String) : []
+  } catch {
+    return []
+  }
+}
+
+const getStoredReminderNotifications = () => getStoredNotificationKeys(REMINDER_NOTIFICATION_STORAGE_KEY)
+
+const getStoredMedicationNotifications = () => getStoredNotificationKeys(MEDICATION_NOTIFICATION_STORAGE_KEY)
+
+const markNotificationAsSent = (storageKey, key) => {
+  const stored = getStoredNotificationKeys(storageKey)
+  if (stored.includes(key)) return
+
+  localStorage.setItem(
+    storageKey,
+    JSON.stringify([...stored, key].slice(-300))
+  )
+}
+
+const markReminderAsNotified = (key) => {
+  markNotificationAsSent(REMINDER_NOTIFICATION_STORAGE_KEY, key)
+}
+
+const markMedicationAsNotified = (key) => {
+  markNotificationAsSent(MEDICATION_NOTIFICATION_STORAGE_KEY, key)
+}
+
+const getLocalDateKey = (date = new Date()) => {
+  const pad = (value) => String(value).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+}
+
 function TablerIcon({ name }) {
   const paths = {
     compass: (
@@ -213,16 +298,23 @@ function TablerIcon({ name }) {
   )
 }
 
-function Home({ onLogout }) {
+function Home({ onLogout, userData }) {
+
   const [activeSection, setActiveSection] = useState('dashboard')
-  const [isAdmin] = useState(() => sessionStorage.getItem('isAdmin') === 'true')
+  const isAdmin = userData?.role === 'ADMIN'
+
   const [novoMedicamento, setNovoMedicamento] = useState({
     nome: '',
     dosagem: '',
     horario: '',
     frequencia: 'diario',
-    duracao: '1-semana'
+    duracao: '1-semana',
+    observacoes: ''
   })
+
+  // restante do código...
+
+  
   const [medicamentosTomados, setMedicamentosTomados] = useState([])
   const [showToast, setShowToast] = useState(false)
   const [toastMessage, setToastMessage] = useState('')
@@ -231,16 +323,27 @@ function Home({ onLogout }) {
   const [historyFilter, setHistoryFilter] = useState('week')
   const [medicamentos, setMedicamentos] = useState([])
   const [loading, setLoading] = useState(false)
-  const [estatisticas, setEstatisticas] = useState({ adesao: 0, tomados: 0, total: 0 })
+  const [, setEstatisticas] = useState({ adesao: 0, tomados: 0, total: 0 })
   const [showProfileModal, setShowProfileModal] = useState(false)
   const [perfil, setPerfil] = useState({
     nome: '',
     senha: '',
     email: '',
-    idade: '',
-    comorbidade: ''
+    dataNascimento: '',
+    comorbidade: '',
+    foto: ''
   })
   const [darkMode, setDarkMode] = useState(false)
+  const [notificationType, setNotificationType] = useState(() => {
+    return normalizeNotificationType(userData?.tipoNotificacao || sessionStorage.getItem('notificationType'))
+  })
+  const [browserNotification, setBrowserNotification] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem(ACTIVE_BROWSER_NOTIFICATION_STORAGE_KEY) || 'null')
+    } catch {
+      return null
+    }
+  })
   const [accessibilityLevel, setAccessibilityLevel] = useState(() => {
     const savedLevel = localStorage.getItem('accessibilityLevel')
     if (['normal', 'medium', 'large', 'xlarge'].includes(savedLevel)) {
@@ -273,6 +376,11 @@ function Home({ onLogout }) {
   const [deleteAccountData, setDeleteAccountData] = useState({
     senhaAtual: ''
   })
+  const [showIgnoreModal, setShowIgnoreModal] = useState(false)
+  const [ignoreTarget, setIgnoreTarget] = useState(null)
+  const [ignoreReason, setIgnoreReason] = useState(ignoreReasonOptions[0])
+  const [ignoreOtherReason, setIgnoreOtherReason] = useState('')
+  const [savingIgnore, setSavingIgnore] = useState(false)
   const [novoLembrete, setNovoLembrete] = useState({
     titulo: '',
     descricao: '',
@@ -304,6 +412,37 @@ function Home({ onLogout }) {
     setShowToast(true)
     setTimeout(() => setShowToast(false), 3000)
   }
+
+  const showBrowserReminderNotification = ({ title, body, notificationKey }) => {
+    tocarSomNotificacaoBrowser()
+    const notification = {
+      id: `${Date.now()}-${notificationKey || title}`,
+      title,
+      body
+    }
+    localStorage.setItem(ACTIVE_BROWSER_NOTIFICATION_STORAGE_KEY, JSON.stringify(notification))
+    setBrowserNotification(notification)
+  }
+
+  const closeBrowserNotification = () => {
+    localStorage.removeItem(ACTIVE_BROWSER_NOTIFICATION_STORAGE_KEY)
+    setBrowserNotification(null)
+  }
+
+  useEffect(() => {
+    const tipoNotificacao = normalizeNotificationType(
+      userData?.tipoNotificacao || sessionStorage.getItem('notificationType')
+    )
+    setNotificationType(tipoNotificacao)
+    sessionStorage.setItem('notificationType', tipoNotificacao)
+  }, [userData?.tipoNotificacao])
+
+  useEffect(() => {
+    if (notificationType !== NOTIFICATION_TYPES.BROWSER) return undefined
+
+    prepararSomNotificacaoBrowser()
+    return undefined
+  }, [notificationType])
 
   const getApiErrorMessage = async (response, fallback = 'Erro ao comunicar com o servidor') => {
     const text = await response.text()
@@ -355,6 +494,182 @@ function Home({ onLogout }) {
     return typeof horario === 'string' ? horario.slice(0, 5) : ''
   }
 
+  const isTakenStatus = (status) => ['TOMADO', 'CONFIRMADO', 'tomado'].includes(status)
+
+  const getHistoricoDate = (item) => {
+    if (!item) return null
+    if (item.dataConfirmacao) return new Date(item.dataConfirmacao)
+    if (item.dataHoraIgnorado) return new Date(item.dataHoraIgnorado)
+    if (item.dataHora) return new Date(item.dataHora)
+    if (item.horario) {
+      const [hour = '0', minute = '0'] = String(item.horario).split(':')
+      const date = new Date()
+      date.setHours(Number(hour), Number(minute), 0, 0)
+      return date
+    }
+    return null
+  }
+
+  const getReminderDate = (lembrete) => {
+    if (!lembrete?.data) return null
+    const date = new Date(`${lembrete.data}T${lembrete.horario || '00:00'}`)
+    return Number.isNaN(date.getTime()) ? null : date
+  }
+
+  const formatReminderDateTime = (lembrete) => {
+    const date = getReminderDate(lembrete)
+    if (!date) return [lembrete?.data, lembrete?.horario].filter(Boolean).join(' ')
+
+    return new Intl.DateTimeFormat('pt-BR', {
+      dateStyle: 'short',
+      timeStyle: 'short'
+    }).format(date)
+  }
+
+  const getMedicationNotificationTimestamp = (med) => {
+    if (!med?.horario) return null
+
+    const [hour = '0', minute = '0'] = String(med.horario).split(':')
+    const date = new Date()
+    date.setHours(Number(hour), Number(minute), 0, 0)
+
+    const timestamp = date.getTime()
+    return Number.isNaN(timestamp) ? null : timestamp
+  }
+
+  const getMedicationNotificationKey = (med) => {
+    return [
+      sessionStorage.getItem('userId') || sessionStorage.getItem('userName') || 'usuario',
+      med?.id || med?.nome || '',
+      getLocalDateKey(),
+      med?.horario || ''
+    ].map(String).join('|')
+  }
+
+  const getSortedLembretes = () => {
+    if (!Array.isArray(lembretes)) return []
+
+    return [...lembretes].sort((a, b) => {
+      const dateA = getReminderDate(a)?.getTime() || 0
+      const dateB = getReminderDate(b)?.getTime() || 0
+      return dateA - dateB
+    })
+  }
+
+  const getUpcomingLembretes = (limit) => {
+    const now = new Date()
+    const sortedLembretes = getSortedLembretes()
+    const upcoming = sortedLembretes.filter((lembrete) => {
+      const reminderDate = getReminderDate(lembrete)
+      return !reminderDate || reminderDate >= now
+    })
+    const source = upcoming.length > 0 ? upcoming : sortedLembretes
+
+    return typeof limit === 'number' ? source.slice(0, limit) : source
+  }
+
+  useEffect(() => {
+    if (!Array.isArray(lembretes) || lembretes.length === 0) return undefined
+
+    const checkDueReminders = () => {
+      const now = Date.now()
+
+      lembretes.forEach((lembrete) => {
+        const reminderTime = getReminderTimestamp(lembrete)
+        if (!reminderTime) return
+
+        const delay = now - reminderTime
+        if (delay < 0 || delay > REMINDER_NOTIFICATION_GRACE_MS) return
+
+        const notificationKey = getReminderNotificationKey(lembrete)
+        if (getStoredReminderNotifications().includes(notificationKey)) return
+
+        markReminderAsNotified(notificationKey)
+
+        const titulo = lembrete?.titulo || 'Lembrete de saude'
+        const descricao = typeof lembrete?.descricao === 'string' ? lembrete.descricao.trim() : ''
+        const horario = formatReminderNotificationTime(lembrete)
+
+        const title = `Lembrete: ${titulo}`
+        const body = descricao || `Horario marcado para ${horario}`
+
+        if (notificationType === NOTIFICATION_TYPES.BROWSER) {
+          showBrowserReminderNotification({
+            title,
+            body,
+            notificationKey
+          })
+          return
+        }
+
+        mostrarNotificacaoLocal({
+          title,
+          body,
+          tag: `pharmalife-lembrete-${notificationKey}`
+        })
+      })
+    }
+
+    checkDueReminders()
+    const intervalId = window.setInterval(checkDueReminders, REMINDER_NOTIFICATION_CHECK_INTERVAL_MS)
+
+    return () => window.clearInterval(intervalId)
+  }, [lembretes, notificationType])
+
+  const isSameDay = (left, right) => {
+    return left.getFullYear() === right.getFullYear()
+      && left.getMonth() === right.getMonth()
+      && left.getDate() === right.getDate()
+  }
+
+  const isPendingMissed = (item) => {
+    if (!item) return false
+    if (item.status !== 'PENDENTE' || !item.horario) return false
+    const scheduledDate = getHistoricoDate(item)
+    return scheduledDate && scheduledDate < new Date()
+  }
+
+  const getMedicationStatusToday = (med) => {
+    if (!med) return 'PENDENTE'
+    const today = new Date()
+    const historicoHoje = Array.isArray(historicoCompleto)
+      ? historicoCompleto
+          .filter((item) => {
+            const itemMedId = item?.medicamento?.id || item?.medicamentoId
+            const itemDate = getHistoricoDate(item)
+            return itemMedId === med.id && itemDate && isSameDay(itemDate, today)
+          })
+          .sort((a, b) => (getHistoricoDate(b) || new Date(0)) - (getHistoricoDate(a) || new Date(0)))
+      : []
+
+    const latest = historicoHoje[0]
+    if (latest?.status === 'IGNORADO') return 'IGNORADO'
+    if (latest && isTakenStatus(latest.status)) return 'TOMADO'
+    if (latest?.status === 'PERDIDO' || isPendingMissed(latest)) return 'PERDIDO'
+    if (latest?.status === 'PENDENTE') return 'PENDENTE'
+
+    const scheduledDate = getHistoricoDate({ horario: med.horario })
+    if (scheduledDate && scheduledDate < new Date()) return 'PERDIDO'
+
+    return 'PENDENTE'
+  }
+
+  const getDailyMedicationStats = () => {
+    const stats = { tomados: 0, pendentes: 0, perdidos: 0, ignorados: 0, total: 0, adesao: 0 }
+
+    agendaMedicamentos.filter(Boolean).forEach((med) => {
+      const status = getMedicationStatusToday(med)
+      if (status === 'TOMADO') stats.tomados += 1
+      else if (status === 'IGNORADO') stats.ignorados += 1
+      else if (status === 'PERDIDO') stats.perdidos += 1
+      else stats.pendentes += 1
+    })
+
+    stats.total = stats.tomados + stats.pendentes + stats.perdidos
+    stats.adesao = stats.total > 0 ? Math.round((stats.tomados / stats.total) * 100) : 0
+    return stats
+  }
+
   const updateAccessibilityLevel = (level) => {
     setAccessibilityLevel(level)
     localStorage.setItem('accessibilityLevel', level)
@@ -376,6 +691,71 @@ function Home({ onLogout }) {
     } else {
       localStorage.removeItem('colorVisionMode')
       showToastMessage('Modo para daltonismo desativado')
+    }
+  }
+
+  const updateNotificationType = async (type) => {
+    const tipoNotificacao = normalizeNotificationType(type)
+    const previousType = notificationType
+    const userId = sessionStorage.getItem('userId')
+
+    setNotificationType(tipoNotificacao)
+    sessionStorage.setItem('notificationType', tipoNotificacao)
+    try {
+      const storedUser = JSON.parse(sessionStorage.getItem('usuario') || 'null')
+      if (storedUser) {
+        sessionStorage.setItem('usuario', JSON.stringify({
+          ...storedUser,
+          tipoNotificacao
+        }))
+      }
+    } catch {
+      // Mantem a configuracao principal em notificationType.
+    }
+
+    try {
+      if (userId) {
+        const response = await fetch(`${API_BASE_URL}/api/usuarios/${userId}/tipo-notificacao`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tipoNotificacao })
+        })
+
+        if (!response.ok) {
+          throw new Error(await getApiErrorMessage(response, 'Erro ao salvar tipo de notificacao'))
+        }
+      }
+
+      if (tipoNotificacao === NOTIFICATION_TYPES.SYSTEM) {
+        const token = await solicitarPermissaoNotificacao()
+
+        if (token && userId) {
+          sessionStorage.setItem('fcmToken', token)
+          const tokenResponse = await fetch(`${API_BASE_URL}/api/usuarios/${userId}/fcm-token`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token })
+          })
+          if (!tokenResponse.ok) {
+            throw new Error(await getApiErrorMessage(tokenResponse, 'Erro ao salvar o token de notificacao'))
+          }
+        }
+
+        showToastMessage(
+          token
+            ? 'Notificacoes pelo sistema ativadas.'
+            : 'Modo sistema salvo, mas a permissao de notificacao nao foi ativada.'
+        )
+        return
+      }
+
+      sessionStorage.removeItem('fcmToken')
+      showToastMessage('Notificacao pelo browser ativada.')
+    } catch (error) {
+      console.error('Erro ao atualizar tipo de notificacao:', error)
+      setNotificationType(previousType)
+      sessionStorage.setItem('notificationType', previousType)
+      showToastMessage(error.message || 'Erro ao salvar tipo de notificacao.')
     }
   }
 
@@ -404,7 +784,6 @@ function Home({ onLogout }) {
         showToastMessage('Medicamento marcado como tomado!')
         await carregarHistoricoCompleto()
         carregarEstatisticas()
-        carregarHistoricoRecente()
       } else {
         throw new Error('Erro no backend')
       }
@@ -415,7 +794,109 @@ function Home({ onLogout }) {
       setMedicamentosTomados([...medicamentosTomados, medicamentoId])
       showToastMessage('Medicamento marcado como tomado!')
       carregarEstatisticas()
-      carregarHistoricoRecente()
+    }
+  }
+
+  const abrirModalIgnorar = (target) => {
+    setIgnoreTarget(target)
+    setIgnoreReason(ignoreReasonOptions[0])
+    setIgnoreOtherReason('')
+    setShowIgnoreModal(true)
+  }
+
+  const fecharModalIgnorar = () => {
+    setShowIgnoreModal(false)
+    setIgnoreTarget(null)
+    setIgnoreReason(ignoreReasonOptions[0])
+    setIgnoreOtherReason('')
+  }
+
+  const getMotivoIgnorado = () => {
+    if (ignoreReason === 'Outro motivo') {
+      return ignoreOtherReason.trim() || 'Outro motivo'
+    }
+    return ignoreReason
+  }
+
+  const criarHistoricoPendente = async (med) => {
+    const agendaId = med.agenda?.id || med.agendaId
+    if (!agendaId) throw new Error('Agenda do medicamento não encontrada')
+
+    const response = await fetch(`${API_BASE_URL}/api/agenda/${agendaId}/medicamentos/${med.id}/historico`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        nome: med.nome,
+        dosagem: med.descricao || med.dosagem || med.agenda?.dosagem || '',
+        observacoes: med.complemento || med.agenda?.observacoes || '',
+        horario: new Date().toTimeString().slice(0, 5),
+        status: 'PENDENTE'
+      })
+    })
+
+    if (!response.ok) {
+      throw new Error(await getApiErrorMessage(response, 'Erro ao registrar histórico'))
+    }
+
+    return response.json()
+  }
+
+  const confirmarIgnorarMedicamento = async () => {
+    if (!ignoreTarget) return
+
+    const motivoIgnorado = getMotivoIgnorado()
+    setSavingIgnore(true)
+
+    try {
+      let historicoId = ignoreTarget.historicoId
+
+      if (!historicoId && ignoreTarget.med) {
+        const historicoCriado = await criarHistoricoPendente(ignoreTarget.med)
+        historicoId = historicoCriado.id
+      }
+
+      if (!historicoId) throw new Error('Histórico não encontrado para ignorar')
+
+      const response = await fetch(`${API_BASE_URL}/api/historico/${historicoId}/ignorar`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ motivoIgnorado })
+      })
+
+      if (!response.ok) {
+        throw new Error(await getApiErrorMessage(response, 'Erro ao ignorar medicamento'))
+      }
+
+      showToastMessage('Medicamento ignorado com sucesso.')
+      fecharModalIgnorar()
+      await carregarHistoricoCompleto()
+      carregarEstatisticas()
+    } catch (error) {
+      const med = ignoreTarget.med
+      if (med) {
+        const registroIgnorado = {
+          id: `ignored-${Date.now()}`,
+          medicamentoId: med.id,
+          nome: med.nome,
+          dosagem: med.dosagem || med.descricao || '',
+          horario: new Date().toTimeString().slice(0, 5),
+          status: 'IGNORADO',
+          motivoIgnorado,
+          dataHoraIgnorado: new Date().toISOString(),
+          usuario: sessionStorage.getItem('userName')
+        }
+        const medicamentosIgnorados = JSON.parse(localStorage.getItem('medicamentosIgnorados') || '[]')
+        medicamentosIgnorados.push(registroIgnorado)
+        localStorage.setItem('medicamentosIgnorados', JSON.stringify(medicamentosIgnorados))
+        setHistoricoCompleto((current) => [...current, registroIgnorado])
+        showToastMessage('Medicamento ignorado com sucesso.')
+        fecharModalIgnorar()
+      } else {
+        console.error(error)
+        alert(error.message || 'Erro ao ignorar medicamento')
+      }
+    } finally {
+      setSavingIgnore(false)
     }
   }
 
@@ -427,8 +908,10 @@ function Home({ onLogout }) {
       ATIVO: { tone: 'confirmed', icon: 'OK', text: 'Ativo' },
       INATIVO: { tone: 'neutral', icon: '-', text: 'Inativo' },
       PENDENTE: { tone: 'pending', icon: 'PD', text: 'Pendente' },
-      CONFIRMADO: { tone: 'confirmed', icon: 'OK', text: 'Confirmado' },
-      IGNORADO: { tone: 'missed', icon: 'EXC', text: 'Ignorado' },
+      TOMADO: { tone: 'confirmed', icon: 'OK', text: 'Tomado' },
+      CONFIRMADO: { tone: 'confirmed', icon: 'OK', text: 'Tomado' },
+      PERDIDO: { tone: 'missed', icon: '!', text: 'Perdido' },
+      IGNORADO: { tone: 'neutral', icon: 'IG', text: 'Ignorado' },
       próximo: { tone: 'info', icon: 'PM', text: 'Próximo' },
       aberta: { tone: 'confirmed', icon: 'OK', text: 'Aberta' },
       fechada: { tone: 'neutral', icon: '-', text: 'Fechada' }
@@ -441,11 +924,14 @@ function Home({ onLogout }) {
     let totalMedicamentos = 0
     let tomados = 0
     let perdidos = 0
+    let ignorados = 0
+    let pendentes = 0
 
     if (Array.isArray(historicoCompleto) && historicoCompleto.length > 0) {
-      tomados = historicoCompleto.filter(h => h.status === 'CONFIRMADO').length
-      perdidos = historicoCompleto.filter(h => h.status === 'IGNORADO').length
-      const pendentes = historicoCompleto.filter(h => h.status === 'PENDENTE').length
+      tomados = historicoCompleto.filter(h => isTakenStatus(h?.status)).length
+      ignorados = historicoCompleto.filter(h => h?.status === 'IGNORADO').length
+      perdidos = historicoCompleto.filter(h => h?.status === 'PERDIDO' || isPendingMissed(h)).length
+      pendentes = historicoCompleto.filter(h => h?.status === 'PENDENTE' && !isPendingMissed(h)).length
       totalMedicamentos = tomados + perdidos + pendentes
     } else {
       const medicamentosTomadosLocal = JSON.parse(localStorage.getItem('medicamentosTomados') || '[]')
@@ -456,10 +942,82 @@ function Home({ onLogout }) {
 
     const adesao = totalMedicamentos > 0 ? Math.round((tomados / totalMedicamentos) * 100) : 0
     
-    setEstatisticas({ adesao, tomados, total: totalMedicamentos, perdidos })
+    setEstatisticas({ adesao, tomados, total: totalMedicamentos, perdidos, pendentes, ignorados })
   }
   
   const renderAjuda = () => {
+    const normalizeHelpSearch = (value) => value
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+
+    const helpDestinations = [
+      {
+        label: 'Adesão',
+        description: 'Veja o percentual de adesão aos medicamentos.',
+        section: 'dashboard',
+        targetId: 'help-target-adesao',
+        keywords: 'adesao porcentagem resumo pagina inicial'
+      },
+      {
+        label: 'Agenda',
+        description: 'Consulte medicamentos e lembretes cadastrados.',
+        section: 'agenda',
+        targetId: 'help-target-agenda',
+        keywords: 'agenda horarios medicamentos lembretes'
+      },
+      {
+        label: 'Histórico',
+        description: 'Consulte medicamentos tomados, pendentes e não tomados.',
+        section: 'historico',
+        targetId: 'help-target-historico',
+        keywords: 'historico tomado pendente perdido nao tomado'
+      },
+      {
+        label: 'Adicionar medicamento',
+        description: 'Abra o formulário de cadastro de medicamento.',
+        section: 'adicionar-medicamento',
+        targetId: 'help-target-adicionar-medicamento',
+        keywords: 'adicionar cadastrar novo medicamento remedio'
+      },
+      {
+        label: 'Adicionar lembrete',
+        description: 'Abra o formulário de cadastro de lembrete.',
+        section: 'adicionar-lembrete',
+        targetId: 'help-target-adicionar-lembrete',
+        keywords: 'adicionar cadastrar novo lembrete aviso'
+      },
+      {
+        label: 'Configurações',
+        description: 'Ajuste notificações, acessibilidade e dados da conta.',
+        section: 'configuracoes',
+        targetId: 'help-target-configuracoes',
+        keywords: 'configuracoes notificacoes acessibilidade conta senha perfil modo escuro'
+      }
+    ]
+
+    const normalizedHelpSearch = normalizeHelpSearch(helpSearchTerm.trim())
+    const matchingDestinations = normalizedHelpSearch
+      ? helpDestinations.filter((destination) =>
+          normalizeHelpSearch(`${destination.label} ${destination.description} ${destination.keywords}`)
+            .includes(normalizedHelpSearch)
+        )
+      : []
+
+    const navigateToHelpDestination = (destination) => {
+      setHelpSearchTerm('')
+      setActiveSection(destination.section)
+
+      window.setTimeout(() => {
+        const target = document.getElementById(destination.targetId)
+        if (!target) return
+        target.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        target.classList.remove('help-navigation-highlight')
+        window.requestAnimationFrame(() => target.classList.add('help-navigation-highlight'))
+        window.setTimeout(() => target.classList.remove('help-navigation-highlight'), 2400)
+      }, 100)
+    }
+
     const helpTopics = [
       { icon: 'compass', title: 'Primeiros passos', text: 'Entrar, entender o painel e localizar as áreas principais.' },
       { icon: 'pill', title: 'Gerenciar medicamentos', text: 'Cadastrar, revisar horários e confirmar tomadas.' },
@@ -471,7 +1029,7 @@ function Home({ onLogout }) {
     const faqs = [
       {
         question: 'Como cadastro um medicamento?',
-        answer: 'Acesse Adicionar, preencha nome, dosagem, horário e frequência. Depois salve para aparecer na Agenda.'
+        answer: 'Acesse Adicionar, escolha Medicamento, preencha nome, dosagem, horário e frequência. Depois salve para aparecer na Agenda.'
       },
       {
         question: 'Como marco um medicamento como tomado?',
@@ -479,7 +1037,7 @@ function Home({ onLogout }) {
       },
       {
         question: 'Onde vejo meu histórico?',
-        answer: 'Entre em Histórico para consultar medicamentos confirmados, pendentes ou ignorados.'
+        answer: 'Entre em Histórico para consultar medicamentos tomados, pendentes, não tomados ou ignorados.'
       },
       {
         question: 'Como aumento o tamanho das letras?',
@@ -487,13 +1045,6 @@ function Home({ onLogout }) {
       }
     ]
 
-    const searchText = helpSearchTerm.trim().toLowerCase()
-    const filteredTopics = searchText
-      ? helpTopics.filter(topic => `${topic.title} ${topic.text}`.toLowerCase().includes(searchText))
-      : helpTopics
-    const filteredFaqs = searchText
-      ? faqs.filter(faq => `${faq.question} ${faq.answer}`.toLowerCase().includes(searchText))
-      : faqs
     const historicoBackend = Array.isArray(historicoCompleto) ? historicoCompleto : []
     const medicamentosBackend = Array.isArray(medicamentos) ? medicamentos : []
     const lembretesUsuario = Array.isArray(lembretes) ? lembretes : []
@@ -512,7 +1063,7 @@ function Home({ onLogout }) {
       },
       {
         title: 'Confirmar uma tomada',
-        done: historicoBackend.some(item => item.status === 'CONFIRMADO') || medicamentosTomados.length > 0
+        done: historicoBackend.some(item => isTakenStatus(item?.status)) || medicamentosTomados.length > 0
       },
       {
         title: 'Criar um lembrete de saúde',
@@ -544,16 +1095,44 @@ function Home({ onLogout }) {
               Guia rápido e acessível para cadastrar medicamentos, acompanhar sua rotina e ajustar sua conta.
             </p>
 
-            <label className="help-search">
-              <span className="sr-only">Buscar tópico de ajuda</span>
-              <span aria-hidden="true">Buscar</span>
+            <div className="help-search">
+              <label className="sr-only" htmlFor="help-site-search">Buscar uma área do aplicativo</label>
               <input
+                id="help-site-search"
                 type="search"
-                placeholder="Busque por agenda, histórico, senha..."
+                placeholder="Busque por adesão, agenda, histórico..."
                 value={helpSearchTerm}
                 onChange={(e) => setHelpSearchTerm(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && matchingDestinations.length > 0) {
+                    e.preventDefault()
+                    navigateToHelpDestination(matchingDestinations[0])
+                  }
+                }}
+                role="combobox"
+                aria-expanded={normalizedHelpSearch.length > 0}
+                aria-controls="help-site-search-results"
+                aria-autocomplete="list"
               />
-            </label>
+              {normalizedHelpSearch && (
+                <div id="help-site-search-results" className="help-search-results" role="listbox">
+                  {matchingDestinations.length > 0 ? matchingDestinations.map((destination) => (
+                    <button
+                      key={destination.label}
+                      type="button"
+                      role="option"
+                      aria-selected="false"
+                      onClick={() => navigateToHelpDestination(destination)}
+                    >
+                      <strong>{destination.label}</strong>
+                      <span>{destination.description}</span>
+                    </button>
+                  )) : (
+                    <p>Nenhuma área encontrada.</p>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="help-hero__visual" aria-hidden="true">
@@ -573,7 +1152,15 @@ function Home({ onLogout }) {
             <span>Onboarding</span>
             <strong>{completedOnboardingSteps} de {onboardingSteps.length} passos essenciais</strong>
           </div>
-          <div className="help-progress__bar">
+          <div
+            className="help-progress__bar"
+            role="progressbar"
+            aria-label="Progresso dos primeiros passos"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            aria-valuenow={onboardingPercent}
+            aria-valuetext={`${completedOnboardingSteps} de ${onboardingSteps.length} passos concluídos`}
+          >
             <span style={{ width: `${onboardingPercent}%` }} />
           </div>
           <ul className="help-progress__steps" aria-label="Checklist de progresso">
@@ -594,17 +1181,13 @@ function Home({ onLogout }) {
         <div className="help-layout">
           <div className="help-main">
             <div className="help-topic-grid" aria-label="Tópicos de ajuda">
-              {filteredTopics.length > 0 ? filteredTopics.map((topic) => (
-                <article className="help-topic-card" key={topic.title} tabIndex="0">
+              {helpTopics.map((topic) => (
+                <article className="help-topic-card" key={topic.title}>
                   <span className="help-topic-icon" aria-hidden="true"><TablerIcon name={topic.icon} /></span>
                   <h3>{topic.title}</h3>
                   <p>{topic.text}</p>
                 </article>
-              )) : (
-                <div className="help-empty-state" role="status">
-                  Nenhum tópico encontrado. Tente buscar por agenda, senha, histórico ou acessibilidade.
-                </div>
-              )}
+              ))}
             </div>
 
             <article className="help-panel">
@@ -628,7 +1211,7 @@ function Home({ onLogout }) {
                   <span>2</span>
                   <div>
                     <h4>Cadastre medicamentos</h4>
-                    <p>Informe dose, horário e frequência na área Adicionar.</p>
+                    <p>Acesse Adicionar, escolha Medicamento e informe dose, horário e frequência.</p>
                   </div>
                 </li>
                 <li>
@@ -651,16 +1234,12 @@ function Home({ onLogout }) {
               </div>
 
               <div className="help-faq-list">
-                {filteredFaqs.length > 0 ? filteredFaqs.map((faq) => (
+                {faqs.map((faq) => (
                   <details className="help-faq" key={faq.question}>
                     <summary>{faq.question}</summary>
                     <p>{faq.answer}</p>
                   </details>
-                )) : (
-                  <div className="help-empty-state" role="status">
-                    Nenhuma pergunta encontrada para esta busca.
-                  </div>
-                )}
+                ))}
               </div>
             </article>
           </div>
@@ -691,76 +1270,16 @@ function Home({ onLogout }) {
     carregarEstatisticas()
   }, [medicamentos, historicoCompleto])
 
-  const [historicoRecente, setHistoricoRecente] = useState([])
-  
-  const carregarHistoricoRecente = () => {
-    const userName = sessionStorage.getItem('userName')
-    const medicamentosTomadosLocal = JSON.parse(localStorage.getItem('medicamentosTomados') || '[]')
-    const medicamentosLocal = JSON.parse(localStorage.getItem('medicamentos') || '[]')
-    
-    const historicoUsuario = medicamentosTomadosLocal
-      .filter(mt => mt.usuario === userName)
-      .map(mt => {
-        const medicamento = medicamentosLocal.find(m => m.id === mt.medicamentoId)
-        const dataHora = new Date(mt.dataHora)
-        const hoje = new Date()
-        const ontem = new Date(hoje)
-        ontem.setDate(hoje.getDate() - 1)
-        
-        let dataTexto = 'Hoje'
-        if (dataHora.toDateString() === ontem.toDateString()) {
-          dataTexto = 'Ontem'
-        } else if (dataHora.toDateString() !== hoje.toDateString()) {
-          dataTexto = dataHora.toLocaleDateString('pt-BR')
-        }
-        
-        return {
-          nome: medicamento ? `${medicamento.nome} ${medicamento.descricao || medicamento.dosagem || ''}` : 'Medicamento',
-          horario: dataHora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-          data: dataTexto,
-          status: 'tomado'
-        }
-      })
-      .sort((a, b) => new Date(b.dataHora) - new Date(a.dataHora))
-      .slice(0, 3)
-    
-    setHistoricoRecente(historicoUsuario)
-  }
-  
-  useEffect(() => {
-    carregarHistoricoRecente()
-  }, [medicamentos])
-  
-  const ultimosRemedios = Array.isArray(historicoCompleto) && historicoCompleto.length > 0
-    ? historicoCompleto
-        .filter(h => h.status === 'PENDENTE' || h.status === 'CONFIRMADO')
-        .sort((a, b) => new Date(b.dataConfirmacao || b.dataHora || 0) - new Date(a.dataConfirmacao || a.dataHora || 0))
-        .slice(0, 3)
-        .map(h => {
-          const dataHora = new Date(h.dataConfirmacao || h.dataHora || Date.now())
-          const hoje = new Date()
-          const ontem = new Date(hoje)
-          ontem.setDate(hoje.getDate() - 1)
-          let dataTexto = 'Hoje'
-          if (dataHora.toDateString() === ontem.toDateString()) dataTexto = 'Ontem'
-          else if (dataHora.toDateString() !== hoje.toDateString()) dataTexto = dataHora.toLocaleDateString('pt-BR')
-
-          return {
-            nome: `${h.nome || 'Medicamento'} ${h.dosagem || ''}`.trim(),
-            horario: dataHora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-            data: dataTexto,
-            status: h.status
-          }
-        })
-    : historicoRecente
-
   const carregarMedicamentos = async () => {
     const userName = sessionStorage.getItem('userName')
     if (!userName) return
     setLoading(true)
     try {
-      let usuarioId = sessionStorage.getItem('userId')
-      if (!usuarioId) { usuarioId = 1; sessionStorage.setItem('userId', usuarioId) }
+      const usuarioId = sessionStorage.getItem('userId')
+      if (!usuarioId) {
+        setMedicamentos([])
+        return
+      }
 
       // 1. Busca agendas do usuário
       const agendaResp = await fetch(`${API_BASE_URL}/api/usuarios/${usuarioId}/agenda`)
@@ -794,211 +1313,273 @@ function Home({ onLogout }) {
   }, [])
   
   // Medicamento do backend: { id, nome, descricao (dosagem), tipo (frequencia), complemento, agenda: { horario } }
-  const agendaMedicamentos = Array.isArray(medicamentos) ? medicamentos.map(med => ({
+  const agendaMedicamentos = useMemo(() => Array.isArray(medicamentos) ? medicamentos.filter(Boolean).map(med => ({
     ...med,
     dosagem: med.descricao || med.dosagem || med.agenda?.dosagem || '',
     horario: formatHorario(med.agenda?.horario || med.horario || ''),
     frequencia: normalizeFrequency(med.tipo || med.frequencia || ''),
     status: med.statusMedicamento || 'ATIVO'
-  })) : []
+  })) : [], [medicamentos])
+
+  useEffect(() => {
+    if (notificationType !== NOTIFICATION_TYPES.BROWSER) return undefined
+    if (!Array.isArray(agendaMedicamentos) || agendaMedicamentos.length === 0) return undefined
+
+    const checkDueMedications = () => {
+      const now = Date.now()
+      const today = new Date()
+      const hasMedicationActionToday = (med) => {
+        if (!Array.isArray(historicoCompleto)) return false
+
+        return historicoCompleto.some((item) => {
+          const itemMedId = item?.medicamento?.id || item?.medicamentoId
+          if (itemMedId !== med.id) return false
+
+          const itemDate = item?.dataConfirmacao
+            ? new Date(item.dataConfirmacao)
+            : item?.dataHoraIgnorado
+              ? new Date(item.dataHoraIgnorado)
+              : null
+
+          if (!itemDate || Number.isNaN(itemDate.getTime())) return false
+          if (!['TOMADO', 'CONFIRMADO', 'tomado', 'IGNORADO'].includes(item.status)) return false
+
+          return itemDate.getFullYear() === today.getFullYear()
+            && itemDate.getMonth() === today.getMonth()
+            && itemDate.getDate() === today.getDate()
+        })
+      }
+
+      agendaMedicamentos.forEach((med) => {
+        if (!med || med.status === 'INATIVO') return
+        if (!med.horario) return
+
+        if (hasMedicationActionToday(med)) return
+
+        const medicationTime = getMedicationNotificationTimestamp(med)
+        if (!medicationTime) return
+
+        const delay = now - medicationTime
+        if (delay < 0 || delay > REMINDER_NOTIFICATION_GRACE_MS) return
+
+        const notificationKey = getMedicationNotificationKey(med)
+        if (getStoredMedicationNotifications().includes(notificationKey)) return
+
+        markMedicationAsNotified(notificationKey)
+
+        showBrowserReminderNotification({
+          title: 'Hora do medicamento!',
+          body: `Esta na hora de tomar ${med.nome}${med.dosagem ? ` - ${med.dosagem}` : ''}.`,
+          notificationKey
+        })
+      })
+    }
+
+    checkDueMedications()
+    const intervalId = window.setInterval(checkDueMedications, REMINDER_NOTIFICATION_CHECK_INTERVAL_MS)
+
+    return () => window.clearInterval(intervalId)
+  }, [agendaMedicamentos, historicoCompleto, notificationType])
 
   const renderDashboard = () => {
-    const adesao = estatisticas.adesao
+    const dailyStats = getDailyMedicationStats()
+    const adesao = dailyStats.adesao
     const agora = new Date()
     const hora = agora.getHours()
     const userName = sessionStorage.getItem('userName') || 'Usuário'
-    const medicamentosTomadosIds = new Set(medicamentosTomados)
-    const totalPendentes = Math.max(0, agendaMedicamentos.filter(med => !medicamentosTomadosIds.has(med.id)).length)
     let saudacao = 'Bom dia'
     if (hora >= 12 && hora < 18) saudacao = 'Boa tarde'
     else if (hora >= 18) saudacao = 'Boa noite'
+
+    const medicamentosOrdenados = [...agendaMedicamentos].sort((a, b) => {
+      const dateA = getHistoricoDate({ horario: a.horario }) || new Date(0)
+      const dateB = getHistoricoDate({ horario: b.horario }) || new Date(0)
+      return dateA - dateB
+    })
+    const proximoMedicamento = medicamentosOrdenados.find((med) => {
+      const statusHoje = getMedicationStatusToday(med)
+      const horario = getHistoricoDate({ horario: med.horario })
+      return horario && horario >= agora && !['TOMADO', 'IGNORADO'].includes(statusHoje)
+    }) || medicamentosOrdenados.find((med) => !['TOMADO', 'IGNORADO'].includes(getMedicationStatusToday(med)))
+
+    const proximosMedicamentos = medicamentosOrdenados
+      .filter((med) => !['TOMADO', 'IGNORADO'].includes(getMedicationStatusToday(med)))
+      .slice(0, 4)
+    const lembretesDashboard = getUpcomingLembretes(4)
+
+    const heroStatus = dailyStats.perdidos > 0
+      ? {
+          tone: 'danger',
+          icon: 'warning',
+          title: `Você possui ${dailyStats.perdidos} medicamento${dailyStats.perdidos > 1 ? 's' : ''} atrasado${dailyStats.perdidos > 1 ? 's' : ''}.`,
+          subtitle: 'Revise sua agenda e registre a ação necessária.'
+        }
+      : dailyStats.pendentes > 0
+        ? {
+            tone: 'attention',
+            icon: 'time',
+            title: `Você possui ${dailyStats.pendentes} medicamento${dailyStats.pendentes > 1 ? 's' : ''} próximo${dailyStats.pendentes > 1 ? 's' : ''} do horário.`,
+            subtitle: 'Tudo certo, só fique atento ao próximo horário.'
+          }
+        : {
+            tone: 'success',
+            icon: 'checklist',
+            title: 'Todos os medicamentos estão em dia.',
+            subtitle: 'Sua rotina de hoje está organizada.'
+          }
     
     return (
       <div className="dashboard-container">
-        {/* Header com saudação e estatísticas rápidas */}
-        <div className="dashboard-header">
-          <div className="welcome-section">
-            <h1 className="welcome-title">{saudacao}, {userName}!</h1>
-            <p className="welcome-subtitle">Gerencie seus medicamentos de forma inteligente</p>
-          </div>
-          <div className="quick-stats">
-            <div className="stat-card stat-card--taken">
-              <div className="stat-icon"><Widget type="pill" /></div>
-              <div className="stat-info">
-                <span className="stat-number">{estatisticas.tomados}</span>
-                <span className="stat-label">Tomados hoje</span>
-              </div>
-            </div>
-            <div className="stat-card stat-card--pending">
-              <div className="stat-icon"><Widget type="time" /></div>
-              <div className="stat-info">
-                <span className="stat-number">{totalPendentes}</span>
-                <span className="stat-label">Pendentes</span>
-              </div>
-            </div>
-            <div className="stat-card stat-card--adherence">
-              <div className="stat-icon"><Widget type="trend" /></div>
-              <div className="stat-info">
-                <span className="stat-number">{adesao}%</span>
-                <span className="stat-label">Adesão</span>
-              </div>
+        <section className={`home-hero home-hero--${heroStatus.tone}`} aria-labelledby="home-status-title">
+          <div className="home-hero__status">
+            <Widget type={heroStatus.icon} className="home-hero__icon" />
+            <div>
+              <p>{saudacao}, {userName}</p>
+              <h2 id="home-status-title">{heroStatus.title}</h2>
+              <span>{heroStatus.subtitle}</span>
             </div>
           </div>
-        </div>
 
-        {/* Grid principal */}
-        <div className="dashboard-grid" style={{alignItems: 'stretch'}}>
-          {/* Próximos medicamentos */}
-          <div className="dashboard-card priority-card">
-            <div className="card-header-modern">
-              <h3><Widget type="target" className="card-icon" />Próximos Medicamentos</h3>
-              <span className="card-badge urgent">Urgente</span>
+          <div className="home-hero__next">
+            <span>Próximo medicamento</span>
+            {proximoMedicamento ? (
+              <strong>{proximoMedicamento.nome} {proximoMedicamento.dosagem} às {proximoMedicamento.horario}</strong>
+            ) : (
+              <strong>Nenhum medicamento pendente hoje</strong>
+            )}
+          </div>
+        </section>
+
+        <section className="home-summary" aria-label="Resumo do dia">
+          <div className="home-summary__item">
+            <span>Tomados Hoje</span>
+            <strong>{dailyStats.tomados}</strong>
+          </div>
+          <div className="home-summary__item">
+            <span>Pendentes</span>
+            <strong>{dailyStats.pendentes}</strong>
+          </div>
+          <div className="home-summary__item" id="help-target-adesao">
+            <span>Adesão</span>
+            <strong>{adesao}%</strong>
+          </div>
+        </section>
+
+        <section className="home-section">
+          <div className="home-section__header">
+            <div>
+              <p>Agenda de hoje</p>
+              <h3>Próximos medicamentos</h3>
             </div>
-            <div className="medication-timeline">
-              {loading ? (
-                <div style={{textAlign: 'center', padding: '20px'}}>Carregando...</div>
-              ) : agendaMedicamentos.length === 0 ? (
-                <div style={{textAlign: 'center', padding: '20px', color: '#666'}}>
-                  Nenhum medicamento cadastrado ainda.
-                  <br />
-                  <button 
-                    onClick={() => setActiveSection('adicionar')}
-                    className="empty-action"
-                  >
-                    Adicionar Primeiro Medicamento
-                  </button>
-                </div>
-              ) : agendaMedicamentos.slice(0, 3).map((med, index) => {
-                const jaTomado = medicamentosTomados.includes(med.id)
+            <button className="btn-link" onClick={() => setActiveSection('agenda')}>Ver agenda</button>
+          </div>
+
+          <div className="home-med-list">
+            {loading ? (
+              <div className="home-empty-state">Carregando medicamentos...</div>
+            ) : agendaMedicamentos.length === 0 ? (
+              <div className="home-empty-state">
+                <span>Nenhum medicamento cadastrado ainda.</span>
+                <button onClick={() => setActiveSection('adicionar-medicamento')} className="empty-action">
+                  Adicionar primeiro medicamento
+                </button>
+              </div>
+            ) : proximosMedicamentos.length === 0 ? (
+              <div className="home-empty-state">Nenhum medicamento pendente para hoje.</div>
+            ) : (
+              proximosMedicamentos.map((med) => {
+                const statusHoje = getMedicationStatusToday(med)
+                const badge = getStatusBadge(statusHoje)
+                const jaTomado = statusHoje === 'TOMADO' || medicamentosTomados.includes(med.id)
+                const jaIgnorado = statusHoje === 'IGNORADO'
+
                 return (
-                  <div key={index} className="timeline-item">
-                    <div className="timeline-time">{med.horario}</div>
-                    <div className="timeline-content">
-                      <div className="med-info">
-                        <h4>{med.nome}</h4>
-                        <span className="med-dosage">{med.dosagem}</span>
-                      </div>
-                      <button 
-                        className={`btn-check ${jaTomado ? 'is-taken' : ''}`}
-                        onClick={() => !jaTomado && marcarComoTomado(med)}
-                        aria-label={jaTomado ? `${med.nome} tomado` : `Marcar ${med.nome} como tomado`}
-                      >
-                        <Widget type="checklist" />
-                      </button>
+                  <article key={med.id} className={`home-med-card home-med-card--${statusHoje.toLowerCase()}`}>
+                    <div className="home-med-card__time">{med.horario}</div>
+                    <div className="home-med-card__body">
+                      <strong>{med.nome}</strong>
+                      <span>{med.dosagem || 'Dosagem não informada'}</span>
                     </div>
-                  </div>
+                    <span className={`badge status-badge status-badge--${badge.tone}`}>
+                      <span className="status-badge__icon" aria-hidden="true">{badge.icon}</span>
+                      {badge.text}
+                    </span>
+                    <div className="home-med-card__actions">
+                      {!jaTomado && !jaIgnorado && (
+                        <>
+                          <button className="btn-take" onClick={() => marcarComoTomado(med)}>
+                            <Widget type="checklist" /> Tomado
+                          </button>
+                          <button className="btn-ignore" onClick={() => abrirModalIgnorar({ med })}>
+                            <Widget type="delete" /> Ignorar
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </article>
                 )
-              })}
+              })
+            )}
+          </div>
+        </section>
+
+        <section className="home-section">
+          <div className="home-section__header">
+            <div>
+              <p>Agenda pessoal</p>
+              <h3>Próximos lembretes</h3>
+            </div>
+            <div className="home-section__actions">
+              <button className="btn-link" onClick={() => setActiveSection('agenda')}>Ver todos</button>
+              <button className="btn-link" onClick={() => setActiveSection('adicionar-lembrete')}>Novo lembrete</button>
             </div>
           </div>
 
-          {/* Resumo de adesão */}
-          <div className="dashboard-card">
-            <div className="card-header-modern">
-              <h3><Widget type="chart" className="card-icon" />Adesão ao Tratamento</h3>
-            </div>
-            <div className="adherence-chart">
-              <div className="chart-circle">
-                <svg viewBox="0 0 100 100" className="circular-chart">
-                  <path
-                    className="circle-bg"
-                    d="M 50,50 m 0,-40 a 40,40 0 1 1 0,80 a 40,40 0 1 1 0,-80"
-                  />
-                  <path
-                    className="circle"
-                    strokeDasharray={`${adesao * 2.51}, 251`}
-                    d="M 50,50 m 0,-40 a 40,40 0 1 1 0,80 a 40,40 0 1 1 0,-80"
-                  />
-                  <text x="50" y="50" className="percentage">{adesao}%</text>
-                </svg>
+          <div className="reminders-list reminders-list--dashboard">
+            {lembretesDashboard.length === 0 ? (
+              <div className="home-empty-state">
+                <span>Nenhum lembrete cadastrado ainda.</span>
+                <button onClick={() => setActiveSection('adicionar-lembrete')} className="empty-action">
+                  Adicionar primeiro lembrete
+                </button>
               </div>
-              <div className="adherence-info">
-                <div className="adherence-item">
-                  <span className="dot success"></span>
-                  <span>Tomados: {estatisticas.tomados}</span>
-                </div>
-                <div className="adherence-item">
-                  <span className="dot warning"></span>
-                  <span>Perdidos: 0</span>
-                </div>
-              </div>
-            </div>
-          </div>
+            ) : (
+              lembretesDashboard.map((lembrete) => {
+                const reminderDate = getReminderDate(lembrete)
+                const isPast = reminderDate && reminderDate < agora
 
-          {/* Histórico recente */}
-          <div className="dashboard-card">
-            <div className="card-header-modern">
-              <h3><Widget type="list" className="card-icon" />Histórico Recente</h3>
-              <button className="btn-link" onClick={() => setActiveSection('historico')}>Ver tudo</button>
-            </div>
-            <div className="recent-history">
-              {ultimosRemedios.length === 0 ? (
-                <div style={{textAlign: 'center', color: '#666', padding: '20px'}}>
-                  Nenhum medicamento tomado ainda.
-                  <br />
-                  Marque medicamentos como tomados para ver o histórico.
-                </div>
-              ) : (
-                ultimosRemedios.map((remedio, index) => (
-                  <div key={index} className="history-item">
-                    <div className="history-icon"><Widget type="checklist" /></div>
-                    <div className="history-info">
-                      <span className="history-med">{remedio.nome}</span>
-                      <span className="history-time">{remedio.data} às {remedio.horario}</span>
+                return (
+                  <article key={lembrete.id} className={`reminder-item ${isPast ? 'priority' : ''}`}>
+                    <Widget type={isPast ? 'warning' : 'bell'} className="reminder-icon" />
+                    <div className="reminder-content">
+                      <strong className="reminder-title">{lembrete.titulo}</strong>
+                      {lembrete.descricao && <span className="reminder-description">{lembrete.descricao}</span>}
+                      <span className="reminder-time">{formatReminderDateTime(lembrete)}</span>
                     </div>
-                  </div>
-                ))
-              )}
-            </div>
+                    <button
+                      type="button"
+                      className="btn-delete-small reminder-delete"
+                      onClick={() => handleDeleteLembrete(lembrete.id)}
+                      title="Excluir lembrete"
+                    >
+                      <Widget type="delete" />
+                    </button>
+                  </article>
+                )
+              })
+            )}
           </div>
+        </section>
 
-          {/* Lembretes importantes */}
-          <div className="dashboard-card">
-            <div className="card-header-modern">
-              <h3><Widget type="bell" className="card-icon" />Lembretes</h3>
-              <button className="btn-link" onClick={() => setActiveSection('adicionar')}>Adicionar</button>
-            </div>
-            <div className="reminders-list">
-              {lembretes.length === 0 ? (
-                <div style={{textAlign: 'center', color: '#666', padding: '20px'}}>
-                  Nenhum lembrete cadastrado ainda.
-                  <br />
-                  <button 
-                    onClick={() => setActiveSection('adicionar')}
-                    className="empty-action"
-                  >
-                    Adicionar Lembrete
-                  </button>
-                </div>
-              ) : (
-                lembretes.slice(0, 3).map((lembrete, index) => {
-                  const dataLembrete = new Date(lembrete.data)
-                  const hoje = new Date()
-                  const amanha = new Date(hoje)
-                  amanha.setDate(hoje.getDate() + 1)
-                  
-                  let dataTexto = dataLembrete.toLocaleDateString('pt-BR')
-                  if (dataLembrete.toDateString() === hoje.toDateString()) {
-                    dataTexto = 'Hoje'
-                  } else if (dataLembrete.toDateString() === amanha.toDateString()) {
-                    dataTexto = 'Amanhã'
-                  }
-                  
-                  const isPriority = dataLembrete <= amanha
-                  
-                  return (
-                    <div key={index} className={`reminder-item ${isPriority ? 'priority' : ''}`}>
-                      <div className="reminder-icon"><Widget type="bell" /></div>
-                      <div className="reminder-content">
-                        <span className="reminder-title">{lembrete.titulo}</span>
-                        <span className="reminder-time">{dataTexto} às {lembrete.horario}</span>
-                      </div>
-                    </div>
-                  )
-                })
-              )}
-            </div>
-          </div>
+        <div className="home-quick-actions">
+          <button onClick={() => setActiveSection('agenda')}>
+            <Widget type="list" />
+            Agenda
+          </button>
+          <button onClick={() => setActiveSection('historico')}>
+            <Widget type="list" />
+            Histórico
+          </button>
         </div>
       </div>
     )
@@ -1007,8 +1588,11 @@ function Home({ onLogout }) {
   const handleAddMedicamento = async () => {
     if (novoMedicamento.nome && novoMedicamento.dosagem && novoMedicamento.horario) {
       try {
-        let usuarioId = sessionStorage.getItem('userId')
-        if (!usuarioId) { usuarioId = 1; sessionStorage.setItem('userId', usuarioId) }
+        const usuarioId = sessionStorage.getItem('userId')
+        if (!usuarioId) {
+          showToastMessage('Sua sessao expirou. Entre novamente para adicionar medicamentos.')
+          return
+        }
 
         // 1. Cria ou reutiliza agenda do usuário
         sessionStorage.removeItem('agendaId')
@@ -1029,7 +1613,7 @@ function Home({ onLogout }) {
                 horario: novoMedicamento.horario || '08:00',
                 dataInicio: toBackendDateTime(new Date()),
                 dataFim: toBackendDateTime(getTreatmentEndDate(novoMedicamento.duracao)),
-                observacoes: novoMedicamento.duracao || ''
+                observacoes: novoMedicamento.observacoes || ''
               })
             })
             if (!novaAgendaResp.ok) {
@@ -1051,13 +1635,13 @@ function Home({ onLogout }) {
             nome: novoMedicamento.nome,
             descricao: novoMedicamento.dosagem,
             tipo: normalizeFrequency(novoMedicamento.frequencia),
-            complemento: novoMedicamento.duracao || '',
+            complemento: novoMedicamento.observacoes || novoMedicamento.duracao || '',
             statusMedicamento: 'ATIVO'
           })
         })
         if (response.ok) {
           showToastMessage('Medicamento adicionado com sucesso!')
-          setNovoMedicamento({ nome: '', dosagem: '', horario: '', frequencia: 'diario', duracao: '1-semana' })
+          setNovoMedicamento({ nome: '', dosagem: '', horario: '', frequencia: 'diario', duracao: '1-semana', observacoes: '' })
           await carregarMedicamentos()
           carregarHistoricoCompleto()
         } else {
@@ -1074,37 +1658,103 @@ function Home({ onLogout }) {
     }
   }
 
-  const handleAddLembrete = (e) => {
+  const handleAddLembrete = async (e) => {
     e.preventDefault()
     if (novoLembrete.titulo && novoLembrete.data && novoLembrete.horario) {
-      const lembretesExistentes = JSON.parse(localStorage.getItem('lembretes') || '[]')
-      const novoLembreteObj = {
-        id: Date.now(),
-        ...novoLembrete,
-        usuario: sessionStorage.getItem('userName')
+      const usuarioId = sessionStorage.getItem('userId')
+      if (!usuarioId) {
+        showToastMessage('Faça login novamente para adicionar um lembrete.')
+        return
       }
-      lembretesExistentes.push(novoLembreteObj)
-      localStorage.setItem('lembretes', JSON.stringify(lembretesExistentes))
-      
-      showToastMessage('Lembrete adicionado com sucesso!')
-      setNovoLembrete({ titulo: '', descricao: '', data: '', horario: '' })
-      carregarLembretes()
+
+      try {
+        let notificationPermission = notificationType === NOTIFICATION_TYPES.BROWSER ? 'browser' : 'default'
+
+        if (notificationType === NOTIFICATION_TYPES.SYSTEM) {
+          notificationPermission = await garantirPermissaoNotificacao()
+        }
+
+        const response = await fetch(`${API_BASE_URL}/api/usuarios/${usuarioId}/lembretes`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(novoLembrete)
+        })
+
+        if (!response.ok) {
+          throw new Error(await getApiErrorMessage(response, 'Erro ao salvar lembrete'))
+        }
+
+        showToastMessage(
+          notificationPermission === 'browser'
+            ? 'Lembrete adicionado com notificacao pelo browser.'
+            : notificationPermission === 'granted'
+            ? 'Lembrete adicionado com sucesso!'
+            : 'Lembrete adicionado, mas as notificacoes nao estao ativadas.'
+        )
+        setNovoLembrete({ titulo: '', descricao: '', data: '', horario: '' })
+        await carregarLembretes()
+        setActiveSection('agenda')
+      } catch (error) {
+        console.error('Erro ao salvar lembrete:', error)
+        showToastMessage(error.message || 'Erro ao salvar lembrete.')
+      }
+    } else {
+      showToastMessage('Preencha os campos obrigatorios do lembrete!')
     }
   }
   
-  const carregarLembretes = () => {
-    const userName = sessionStorage.getItem('userName')
-    if (!userName) return
-    
-    const lembretesExistentes = JSON.parse(localStorage.getItem('lembretes') || '[]')
-    const lembretesUsuario = lembretesExistentes.filter(l => l.usuario === userName)
-    setLembretes(lembretesUsuario)
+  const carregarLembretes = async () => {
+    const usuarioId = sessionStorage.getItem('userId')
+    if (!usuarioId) {
+      setLembretes([])
+      return
+    }
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/usuarios/${usuarioId}/lembretes`)
+      if (!response.ok) {
+        throw new Error(await getApiErrorMessage(response, 'Erro ao carregar lembretes'))
+      }
+      const data = await response.json()
+      setLembretes(Array.isArray(data) ? data : [])
+    } catch (error) {
+      console.error('Erro ao carregar lembretes:', error)
+      setLembretes([])
+    }
+  }
+
+  const handleDeleteLembrete = async (lembreteId) => {
+    if (!window.confirm('Tem certeza que deseja excluir este lembrete?')) return
+
+    const usuarioId = sessionStorage.getItem('userId')
+    if (!usuarioId) {
+      showToastMessage('Faça login novamente para excluir o lembrete.')
+      return
+    }
+
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/api/usuarios/${usuarioId}/lembretes/${lembreteId}`,
+        { method: 'DELETE' }
+      )
+      if (!response.ok) {
+        throw new Error(await getApiErrorMessage(response, 'Erro ao excluir lembrete'))
+      }
+      setLembretes((current) => current.filter((lembrete) => String(lembrete.id) !== String(lembreteId)))
+      showToastMessage('Lembrete excluido com sucesso!')
+    } catch (error) {
+      console.error('Erro ao excluir lembrete:', error)
+      showToastMessage(error.message || 'Erro ao excluir lembrete.')
+    }
   }
   
   const carregarHistoricoCompleto = async () => {
     try {
-      let usuarioId = sessionStorage.getItem('userId')
-      if (!usuarioId) { usuarioId = 1; sessionStorage.setItem('userId', usuarioId) }
+      const usuarioId = sessionStorage.getItem('userId')
+      if (!usuarioId) {
+        setHistoricoCompleto([])
+        return
+      }
 
       const response = await fetch(`${API_BASE_URL}/api/usuarios/${usuarioId}/historico`)
       if (response.ok) {
@@ -1118,6 +1768,7 @@ function Home({ onLogout }) {
       // Fallback para localStorage
       const userName = sessionStorage.getItem('userName')
       const medicamentosTomadosLocal = JSON.parse(localStorage.getItem('medicamentosTomados') || '[]')
+      const medicamentosIgnorados = JSON.parse(localStorage.getItem('medicamentosIgnorados') || '[]')
       const historicoExclusoes = JSON.parse(localStorage.getItem('historicoExclusoes') || '[]')
       const medicamentosLocal = JSON.parse(localStorage.getItem('medicamentos') || '[]')
       
@@ -1134,6 +1785,15 @@ function Home({ onLogout }) {
             detalhes: `Medicamento tomado conforme programado`
           }
         })
+
+      const historicoIgnorados = medicamentosIgnorados
+        .filter(mi => mi.usuario === userName)
+        .map(mi => ({
+          ...mi,
+          nome: mi.nome || 'Medicamento',
+          dosagem: mi.dosagem || '',
+          status: 'IGNORADO'
+        }))
       
       // Histórico de exclusões
       const historicoExcluidos = historicoExclusoes
@@ -1147,7 +1807,11 @@ function Home({ onLogout }) {
         }))
       
       // Combinar e ordenar todos os históricos
-      const historicoLocal = [...(Array.isArray(historicoTomados) ? historicoTomados : []), ...(Array.isArray(historicoExcluidos) ? historicoExcluidos : [])]
+      const historicoLocal = [
+        ...(Array.isArray(historicoTomados) ? historicoTomados : []),
+        ...(Array.isArray(historicoIgnorados) ? historicoIgnorados : []),
+        ...(Array.isArray(historicoExcluidos) ? historicoExcluidos : [])
+      ]
         .sort((a, b) => new Date(b.dataHora) - new Date(a.dataHora))
       
       setHistoricoCompleto(Array.isArray(historicoLocal) ? historicoLocal : [])
@@ -1161,16 +1825,21 @@ function Home({ onLogout }) {
         const response = await fetch(`${API_BASE_URL}/api/usuarios/${userId}`)
         if (response.ok) {
           const usuario = await response.json()
-          setPerfil({
-            nome: usuario.nome,
-            senha: '******',
-            email: usuario.email,
-            idade: usuario.idade || '',
-            comorbidade: usuario.comorbidade || ''
-          })
+
+setPerfil({
+    nome: usuario.nome,
+    senha: '******',
+    email: usuario.email,
+    dataNascimento: usuario.dataNascimento || '',    
+    comorbidade: usuario.comorbidade || '',
+    foto: usuario.foto || sessionStorage.getItem('userPhoto') || ''
+})
           // Atualizar sessionStorage com dados do backend
           sessionStorage.setItem('userName', usuario.nome)
           sessionStorage.setItem('userEmail', usuario.email)
+          const tipoNotificacao = normalizeNotificationType(usuario.tipoNotificacao)
+          sessionStorage.setItem('notificationType', tipoNotificacao)
+          setNotificationType(tipoNotificacao)
           return
         }
       }
@@ -1181,7 +1850,7 @@ function Home({ onLogout }) {
     // Fallback para sessionStorage e localStorage
     const userName = sessionStorage.getItem('userName')
     let userEmail = sessionStorage.getItem('userEmail')
-    let userIdade = ''
+    let userDataNascimento = ''
     let userComorbidade = ''
     
     // Buscar dados completos do localStorage
@@ -1190,7 +1859,7 @@ function Home({ onLogout }) {
     
     if (usuarioEncontrado) {
       userEmail = usuarioEncontrado.email
-      userIdade = usuarioEncontrado.idade || ''
+      userDataNascimento = usuarioEncontrado.dataNascimento || ''
       userComorbidade = usuarioEncontrado.comorbidade || ''
       sessionStorage.setItem('userEmail', userEmail)
     }
@@ -1198,17 +1867,18 @@ function Home({ onLogout }) {
     // Também verificar se há dados salvos no perfil local
     const perfilLocal = JSON.parse(localStorage.getItem('perfilUsuario') || '{}')
     if (perfilLocal.nome === userName) {
-      userIdade = perfilLocal.idade || userIdade
+      userDataNascimento = perfilLocal.dataNascimento  || userDataNascimento
       userComorbidade = perfilLocal.comorbidade || userComorbidade
     }
     
     setPerfil({
-      nome: userName || 'Usuário',
-      senha: '******',
-      email: userEmail || 'Não informado',
-      idade: userIdade || '',
-      comorbidade: userComorbidade || ''
-    })
+  nome: userName || 'Usuário',
+  senha: '******',
+  email: userEmail || 'Não informado',
+  dataNascimento: userDataNascimento || '',
+  comorbidade: userComorbidade || '',
+  foto: sessionStorage.getItem('userPhoto') || userData?.foto || ''
+})
   }
   
   useEffect(() => {
@@ -1373,16 +2043,22 @@ function Home({ onLogout }) {
 
 
   const renderAgenda = () => {
-    const medicamentosFiltrados = agendaMedicamentos.filter(med => 
-      med.nome.toLowerCase().includes(searchTerm.toLowerCase())
+    const normalizedSearchTerm = searchTerm.toLowerCase()
+    const medicamentosFiltrados = agendaMedicamentos.filter(med =>
+      med.nome.toLowerCase().includes(normalizedSearchTerm)
+    )
+    const lembretesFiltrados = getSortedLembretes().filter((lembrete) =>
+      `${lembrete.titulo} ${lembrete.descricao || ''} ${formatReminderDateTime(lembrete)}`
+        .toLowerCase()
+        .includes(normalizedSearchTerm)
     )
     return (
       <>
-        <h2 className="section-title">Agenda de medicamentos</h2>
+        <h2 className="section-title" id="help-target-agenda">Agenda</h2>
         <div className="search-container">
           <input
             type="text"
-            placeholder="Buscar medicamento..."
+            placeholder="Buscar medicamento ou lembrete..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="search-input"
@@ -1392,9 +2068,10 @@ function Home({ onLogout }) {
             onClick={() => setActiveSection('adicionar')}
           >
             <Widget type="add" className="btn-icon" />
-            Adicionar Medicamento
+            Adicionar
           </button>
         </div>
+        <h3 className="agenda-subtitle">Medicamentos</h3>
         <div className="agenda">
           {loading ? (
             <div style={{textAlign: 'center', padding: '40px'}}>Carregando medicamentos...</div>
@@ -1403,17 +2080,19 @@ function Home({ onLogout }) {
               {searchTerm ? 'Nenhum medicamento encontrado com esse nome.' : 'Nenhum medicamento cadastrado ainda.'}
               <br />
               <button 
-                onClick={() => setActiveSection('adicionar')}
+                onClick={() => setActiveSection('adicionar-medicamento')}
                 className="empty-action"
               >
                 Adicionar Medicamento
               </button>
             </div>
           ) : medicamentosFiltrados.map((med, index) => {
-            const badge = getStatusBadge(med.status)
-            const jaTomado = medicamentosTomados.includes(med.id)
+            const statusHoje = getMedicationStatusToday(med)
+            const badge = getStatusBadge(statusHoje)
+            const jaTomado = statusHoje === 'TOMADO' || medicamentosTomados.includes(med.id)
+            const jaIgnorado = statusHoje === 'IGNORADO'
             return (
-              <div key={index} className={`med-row ${jaTomado ? 'med-row--taken' : ''}`}>
+              <div key={index} className={`med-row med-row--${statusHoje.toLowerCase()} ${jaTomado ? 'med-row--taken' : ''}`}>
                 <div className="med-row__info">
                   <span className="med-row__name">{med.nome}</span>
                   <span className="med-row__meta">{med.dosagem} · {med.horario} · {med.frequencia}</span>
@@ -1423,8 +2102,11 @@ function Home({ onLogout }) {
                   {badge.text}
                 </span>
                 <div className="med-row__actions">
-                  {!jaTomado && med.status !== 'tomado' && (
+                  {!jaTomado && !jaIgnorado && med.status !== 'tomado' && (
                     <button className="btn-take" onClick={() => marcarComoTomado(med)} title="Marcar como tomado"><Widget type="checklist" /> Tomado</button>
+                  )}
+                  {!jaTomado && !jaIgnorado && (
+                    <button className="btn-ignore" onClick={() => abrirModalIgnorar({ med })} title="Ignorar medicamento"><Widget type="delete" /> Ignorar</button>
                   )}
                   <button className="btn-edit" onClick={() => handleEditMedicamento(med)} title="Editar"><Widget type="edit" /></button>
                   <button className="btn-delete-small" onClick={() => handleDeleteMedicamento(med.id)} title="Excluir"><Widget type="delete" /></button>
@@ -1433,210 +2115,285 @@ function Home({ onLogout }) {
             )
           })}
         </div>
+
+        <h3 className="agenda-subtitle">Lembretes</h3>
+        <div className="agenda reminders-list reminders-list--agenda">
+          {lembretesFiltrados.length === 0 ? (
+            <div className="home-empty-state agenda-empty-state">
+              <span>{searchTerm ? 'Nenhum lembrete encontrado com esse termo.' : 'Nenhum lembrete cadastrado ainda.'}</span>
+              <button
+                type="button"
+                onClick={() => setActiveSection('adicionar-lembrete')}
+                className="empty-action"
+              >
+                Adicionar Lembrete
+              </button>
+            </div>
+          ) : (
+            lembretesFiltrados.map((lembrete) => {
+              const reminderDate = getReminderDate(lembrete)
+              const isPast = reminderDate && reminderDate < new Date()
+
+              return (
+                <article key={lembrete.id} className={`reminder-item ${isPast ? 'priority' : ''}`}>
+                  <Widget type={isPast ? 'warning' : 'bell'} className="reminder-icon" />
+                  <div className="reminder-content">
+                    <strong className="reminder-title">{lembrete.titulo}</strong>
+                    {lembrete.descricao && <span className="reminder-description">{lembrete.descricao}</span>}
+                    <span className="reminder-time">{formatReminderDateTime(lembrete)}</span>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn-delete-small reminder-delete"
+                    onClick={() => handleDeleteLembrete(lembrete.id)}
+                    title="Excluir lembrete"
+                  >
+                    <Widget type="delete" />
+                  </button>
+                </article>
+              )
+            })
+          )}
+        </div>
       </>
     )
   }
 
-  const renderAdicionar = () => (
-    <div className="adicionar-container">
-      <div className="adicionar-header">
-        <div className="header-content">
-          <h1 className="page-title">Adicionar novo</h1>
-          <p className="page-subtitle">Cadastre medicamentos e lembretes para manter sua saúde em dia</p>
-        </div>
-      </div>
-
-      <div className="adicionar-grid">
-        <div className="add-card medicamento-card">
-          <div className="card-header-modern">
-            <div className="card-icon-large"><Widget type="pill" /></div>
-            <div className="card-title-section">
-              <h3>Novo Medicamento</h3>
-              <p>Adicione um medicamento à sua agenda</p>
-            </div>
-          </div>
-          
-          <div className="form-modern">
-            <div className="input-group">
-              <label>Nome do medicamento</label>
-              <input
-                type="text"
-                placeholder="Ex: Paracetamol, Dipirona..."
-                value={novoMedicamento.nome}
-                onChange={(e) => setNovoMedicamento({...novoMedicamento, nome: e.target.value})}
-                className="input-modern"
-                required
-              />
-            </div>
-            
-            <div className="input-row">
-              <div className="input-group">
-                <label>Dosagem</label>
-                <input
-                  type="text"
-                  placeholder="Ex: 500mg, 1 comprimido"
-                  value={novoMedicamento.dosagem}
-                  onChange={(e) => setNovoMedicamento({...novoMedicamento, dosagem: e.target.value})}
-                  className="input-modern"
-                  required
-                />
-              </div>
-              
-              <div className="input-group">
-                <label>Horário</label>
-                <input
-                  type="time"
-                  value={novoMedicamento.horario}
-                  onChange={(e) => setNovoMedicamento({...novoMedicamento, horario: e.target.value})}
-                  className="input-modern"
-                  required
-                />
-              </div>
-            </div>
-            
-            <div className="input-row">
-              <div className="input-group">
-                <label>Frequência</label>
-                <select
-                  value={novoMedicamento.frequencia}
-                  onChange={(e) => setNovoMedicamento({...novoMedicamento, frequencia: e.target.value})}
-                  className="select-modern"
-                >
-                  <option value="diario">Diário</option>
-                  <option value="12h">A cada 12h</option>
-                  <option value="8h">A cada 8h</option>
-                  <option value="Semanal">Semanal</option>
-                </select>
-              </div>
-              
-              <div className="input-group">
-                <label>Duração do tratamento</label>
-                <select
-                  value={novoMedicamento.duracao}
-                  onChange={(e) => setNovoMedicamento({...novoMedicamento, duracao: e.target.value})}
-                  className="select-modern"
-                >
-                  <option value="1-semana">1 semana</option>
-                  <option value="1 dia">1 dia</option>
-                  <option value="3 dias">3 dias</option>
-                  <option value="5 dias">5 dias</option>
-                  <option value="2 semanas">2 semanas</option>
-                  <option value="1 mês">1 mês</option>
-                  <option value="3 meses">3 meses</option>
-                  <option value="6 meses">6 meses</option>
-                  <option value="Contínuo">Contínuo</option>
-                </select>
-              </div>
-            </div>
-            
-            <button 
-              onClick={handleAddMedicamento}
-              className="btn-add-modern medicamento"
-              type="button"
-            >
-              <Widget type="pill" className="btn-icon" />
-              Adicionar Medicamento
-            </button>
+  const renderMedicamentoForm = () => (
+    <div className="add-card medicamento-card add-card--single" id="help-target-adicionar-medicamento">
+      <div className="form-modern">
+        <div className="add-form-heading">
+          <Widget type="pill" className="add-form-heading__icon" />
+          <div>
+            <h2>Novo Medicamento</h2>
+            <p>Preencha as informacoes do medicamento.</p>
           </div>
         </div>
 
-        <div className="add-card lembrete-card">
-          <div className="card-header-modern">
-            <div className="card-icon-large"><Widget type="bell" /></div>
-            <div className="card-title-section">
-              <h3>Novo Lembrete</h3>
-              <p>Crie lembretes importantes para sua saúde</p>
-            </div>
+        <div className="input-group">
+          <label>Nome do medicamento</label>
+          <input
+            type="text"
+            placeholder="Ex: Paracetamol, Dipirona, Ibuprofeno..."
+            value={novoMedicamento.nome}
+            onChange={(e) => setNovoMedicamento({...novoMedicamento, nome: e.target.value})}
+            className="input-modern"
+            required
+          />
+        </div>
+
+        <div className="input-row input-row--three">
+          <div className="input-group">
+            <label>Dosagem</label>
+            <input
+              type="text"
+              placeholder="Ex: 500mg, 1 comprimido"
+              value={novoMedicamento.dosagem}
+              onChange={(e) => setNovoMedicamento({...novoMedicamento, dosagem: e.target.value})}
+              className="input-modern"
+              required
+            />
           </div>
-          
-          <div className="form-modern">
-            <div className="input-group">
-              <label>Título do lembrete</label>
-              <input
-                type="text"
-                placeholder="Ex: Consulta médica, Exame de sangue..."
-                value={novoLembrete.titulo}
-                onChange={(e) => setNovoLembrete({...novoLembrete, titulo: e.target.value})}
-                className="input-modern"
-                required
-              />
-            </div>
-            
-            <div className="input-group">
-              <label>Descrição (opcional)</label>
-              <textarea
-                placeholder="Adicione detalhes sobre o lembrete..."
-                value={novoLembrete.descricao}
-                onChange={(e) => setNovoLembrete({...novoLembrete, descricao: e.target.value})}
-                className="textarea-modern"
-                rows="3"
-              />
-            </div>
-            
-            <div className="input-row">
-              <div className="input-group">
-                <label>Data</label>
-                <input
-                  type="date"
-                  value={novoLembrete.data}
-                  onChange={(e) => setNovoLembrete({...novoLembrete, data: e.target.value})}
-                  className="input-modern"
-                  required
-                />
-              </div>
-              
-              <div className="input-group">
-                <label>Horário</label>
-                <input
-                  type="time"
-                  value={novoLembrete.horario}
-                  onChange={(e) => setNovoLembrete({...novoLembrete, horario: e.target.value})}
-                  className="input-modern"
-                  required
-                />
-              </div>
-            </div>
-            
-            <button 
-              onClick={handleAddLembrete}
-              className="btn-add-modern lembrete"
-              type="button"
+
+          <div className="input-group">
+            <label>Horario</label>
+            <input
+              type="time"
+              value={novoMedicamento.horario}
+              onChange={(e) => setNovoMedicamento({...novoMedicamento, horario: e.target.value})}
+              className="input-modern"
+              required
+            />
+          </div>
+
+          <div className="input-group">
+            <label>Frequencia</label>
+            <select
+              value={novoMedicamento.frequencia}
+              onChange={(e) => setNovoMedicamento({...novoMedicamento, frequencia: e.target.value})}
+              className="select-modern"
             >
-              <Widget type="bell" className="btn-icon" />
-              Adicionar Lembrete
-            </button>
+              <option value="diario">Diario</option>
+              <option value="12h">A cada 12h</option>
+              <option value="8h">A cada 8h</option>
+              <option value="Semanal">Semanal</option>
+            </select>
           </div>
         </div>
-      </div>
-      
-      <div className="tips-section">
-        <h3><Widget type="sparkle" className="title-widget" />Dicas Importantes</h3>
-        <div className="tips-grid">
-          <div className="tip-card">
-            <span className="tip-icon"><Widget type="time" /></span>
-            <div>
-              <h4>Horários Regulares</h4>
-              <p>Mantenha sempre os mesmos horários para melhor eficácia</p>
-            </div>
-          </div>
-          <div className="tip-card">
-            <span className="tip-icon"><Widget type="list" /></span>
-            <div>
-              <h4>Informações Completas</h4>
-              <p>Preencha todos os campos para um controle mais preciso</p>
-            </div>
-          </div>
-          <div className="tip-card">
-            <span className="tip-icon"><Widget type="doctor" /></span>
-            <div>
-              <h4>Orientação Médica</h4>
-              <p>Sempre siga as orientações do seu médico</p>
-            </div>
-          </div>
+
+        <div className="input-group">
+          <label>Duracao do tratamento</label>
+          <select
+            value={novoMedicamento.duracao}
+            onChange={(e) => setNovoMedicamento({...novoMedicamento, duracao: e.target.value})}
+            className="select-modern"
+          >
+            <option value="1-semana">1 semana</option>
+            <option value="1 dia">1 dia</option>
+            <option value="3 dias">3 dias</option>
+            <option value="5 dias">5 dias</option>
+            <option value="2 semanas">2 semanas</option>
+            <option value="1 mês">1 mes</option>
+            <option value="3 meses">3 meses</option>
+            <option value="6 meses">6 meses</option>
+            <option value="Contínuo">Continuo</option>
+          </select>
         </div>
+
+        <div className="input-group">
+          <label>Observacoes (opcional)</label>
+          <textarea
+            placeholder="Ex: Tomar apos as refeicoes, com bastante agua..."
+            value={novoMedicamento.observacoes}
+            onChange={(e) => setNovoMedicamento({...novoMedicamento, observacoes: e.target.value})}
+            className="textarea-modern"
+            rows="3"
+          />
+        </div>
+
+        <button
+          onClick={handleAddMedicamento}
+          className="btn-add-modern medicamento"
+          type="button"
+        >
+          <Widget type="add" className="btn-icon" />
+          Adicionar Medicamento
+        </button>
       </div>
     </div>
   )
+
+  const renderLembreteForm = () => (
+    <div className="add-card lembrete-card add-card--single" id="help-target-adicionar-lembrete">
+      <div className="form-modern">
+        <div className="add-form-heading">
+          <Widget type="bell" className="add-form-heading__icon" />
+          <div>
+            <h2>Novo Lembrete</h2>
+            <p>Preencha as informacoes do lembrete.</p>
+          </div>
+        </div>
+
+        <div className="input-group">
+          <label>Titulo do lembrete</label>
+          <input
+            type="text"
+            placeholder="Ex: Consulta medica, exame de sangue..."
+            value={novoLembrete.titulo}
+            onChange={(e) => setNovoLembrete({...novoLembrete, titulo: e.target.value})}
+            className="input-modern"
+            required
+          />
+        </div>
+
+        <div className="input-group">
+          <label>Descricao (opcional)</label>
+          <textarea
+            placeholder="Adicione detalhes sobre o lembrete..."
+            value={novoLembrete.descricao}
+            onChange={(e) => setNovoLembrete({...novoLembrete, descricao: e.target.value})}
+            className="textarea-modern"
+            rows="3"
+          />
+        </div>
+
+        <div className="input-row">
+          <div className="input-group">
+            <label>Data</label>
+            <input
+              type="date"
+              value={novoLembrete.data}
+              onChange={(e) => setNovoLembrete({...novoLembrete, data: e.target.value})}
+              className="input-modern"
+              required
+            />
+          </div>
+
+          <div className="input-group">
+            <label>Horario</label>
+            <input
+              type="time"
+              value={novoLembrete.horario}
+              onChange={(e) => setNovoLembrete({...novoLembrete, horario: e.target.value})}
+              className="input-modern"
+              required
+            />
+          </div>
+        </div>
+
+        <button
+          onClick={handleAddLembrete}
+          className="btn-add-modern lembrete"
+          type="button"
+        >
+          <Widget type="bell" className="btn-icon" />
+          Adicionar Lembrete
+        </button>
+      </div>
+    </div>
+  )
+
+  const renderAdicionar = (tipo = 'medicamento') => {
+    const isLembrete = tipo === 'lembrete'
+    const addOptions = [
+      {
+        type: 'medicamento',
+        icon: 'pill',
+        title: 'Medicamento',
+        description: 'Adicione um novo medicamento ao seu tratamento',
+        section: 'adicionar-medicamento'
+      },
+      {
+        type: 'lembrete',
+        icon: 'bell',
+        title: 'Lembrete',
+        description: 'Adicione um lembrete para consultas, exames ou cuidados',
+        section: 'adicionar-lembrete'
+      }
+    ]
+
+    return (
+      <div className="adicionar-container add-flow">
+        <div className="adicionar-header add-flow__header">
+          <div className="header-content">
+            <div className="add-flow__breadcrumb">
+              <button type="button" onClick={() => setActiveSection('dashboard')}>Dashboard</button>
+              <span>&gt;</span>
+              <strong>Adicionar</strong>
+            </div>
+            <h1 className="page-title">Adicionar</h1>
+            <p className="page-subtitle">Escolha o que deseja adicionar a sua agenda de tratamento.</p>
+          </div>
+        </div>
+
+        <div className="add-flow__type-grid" role="tablist" aria-label="Tipo de cadastro">
+          {addOptions.map((option) => {
+            const selected = option.type === tipo
+            return (
+              <button
+                key={option.type}
+                type="button"
+                className={`add-type-card add-type-card--${option.type} ${selected ? 'is-selected' : ''}`}
+                onClick={() => setActiveSection(option.section)}
+                aria-pressed={selected}
+              >
+                <Widget type={option.icon} className="add-type-card__icon" />
+                <span className="add-type-card__body">
+                  <strong>{option.title}</strong>
+                  <small>{option.description}</small>
+                </span>
+                {selected && <Widget type="checklist" className="add-type-card__check" />}
+              </button>
+            )
+          })}
+        </div>
+
+        <div className="add-flow__form">
+          {isLembrete ? renderLembreteForm() : renderMedicamentoForm()}
+        </div>
+      </div>
+    )
+  }
 
   const confirmarHistorico = async (id) => {
     try {
@@ -1645,32 +2402,125 @@ function Home({ onLogout }) {
     } catch { showToastMessage('Erro ao confirmar') }
   }
 
-  const ignorarHistorico = async (id) => {
-    try {
-      const resp = await fetch(`${API_BASE_URL}/api/historico/${id}/ignorar`, { method: 'PATCH' })
-      if (resp.ok) { showToastMessage('Registro ignorado.'); carregarHistoricoCompleto() }
-    } catch { showToastMessage('Erro ao ignorar') }
-  }
-
   const renderHistorico = () => {
     const getStatusIcon = (status) => {
       switch(status) {
+        case 'TOMADO': return <Widget type="checklist" />
         case 'CONFIRMADO': return <Widget type="checklist" />
         case 'IGNORADO': return <Widget type="delete" />
+        case 'PERDIDO': return <Widget type="warning" />
         case 'PENDENTE': return <Widget type="time" />
         default: return <Widget type="list" />
       }
     }
-    const filteredHistorico = Array.isArray(historicoCompleto) ? historicoCompleto.filter((item) => {
+
+    const getHistoricoDate = (item) => {
+      if (!item) return null
+      if (item.dataConfirmacao) return new Date(item.dataConfirmacao)
+      if (item.dataHoraIgnorado) return new Date(item.dataHoraIgnorado)
+      if (item.dataHora) return new Date(item.dataHora)
+      if (item.horario) {
+        const [hour = '0', minute = '0'] = String(item.horario).split(':')
+        const date = new Date()
+        date.setHours(Number(hour), Number(minute), 0, 0)
+        return date
+      }
+      return null
+    }
+
+    const isSameDay = (left, right) => {
+      return left.getFullYear() === right.getFullYear()
+        && left.getMonth() === right.getMonth()
+        && left.getDate() === right.getDate()
+    }
+
+    const isPendingMissed = (item) => {
+      if (!item) return false
+      if (item.status !== 'PENDENTE' || !item.horario) return false
+      const scheduledDate = getHistoricoDate(item)
+      return scheduledDate && scheduledDate < new Date()
+    }
+
+    const hasHistoricoOnDay = (med, day) => {
+      if (!med || !day) return false
+      return Array.isArray(historicoCompleto) && historicoCompleto.some((item) => {
+        const itemMedId = item?.medicamento?.id || item?.medicamentoId
+        const itemDate = getHistoricoDate(item)
+        return String(itemMedId) === String(med.id) && itemDate && isSameDay(itemDate, day)
+      })
+    }
+
+    const missedFromAgenda = agendaMedicamentos
+      .filter((med) => med?.horario && med.status !== 'INATIVO')
+      .flatMap((med) => {
+        const now = new Date()
+        const agendaStart = med.agenda?.dataInicio ? new Date(med.agenda.dataInicio) : null
+        const agendaEnd = med.agenda?.dataFim ? new Date(med.agenda.dataFim) : null
+        const fallbackDays = historyFilter === 'week' ? 6 : historyFilter === 'month' ? 29 : 365
+        const rangeStart = new Date(now)
+        rangeStart.setDate(rangeStart.getDate() - fallbackDays)
+        rangeStart.setHours(0, 0, 0, 0)
+
+        if (agendaStart && !Number.isNaN(agendaStart.getTime()) && agendaStart > rangeStart) {
+          rangeStart.setTime(agendaStart.getTime())
+          rangeStart.setHours(0, 0, 0, 0)
+        }
+
+        const rangeEnd = new Date(now)
+        if (agendaEnd && !Number.isNaN(agendaEnd.getTime()) && agendaEnd < rangeEnd) {
+          rangeEnd.setTime(agendaEnd.getTime())
+        }
+
+        const [hour = '0', minute = '0'] = String(med.horario).split(':')
+        const missed = []
+        const day = new Date(rangeStart)
+
+        while (day <= rangeEnd) {
+          const scheduledDate = new Date(day)
+          scheduledDate.setHours(Number(hour), Number(minute), 0, 0)
+
+          if (scheduledDate < now && !hasHistoricoOnDay(med, scheduledDate)) {
+            missed.push({
+              id: `missed-${med.id}-${scheduledDate.toISOString().slice(0, 10)}`,
+              medicamentoId: med.id,
+              nome: med.nome,
+              dosagem: med.dosagem,
+              horario: med.horario,
+              dataHora: scheduledDate.toISOString(),
+              status: 'PERDIDO',
+              virtualMissed: true,
+              observacoes: 'Horario passou e o medicamento nao foi marcado como tomado.'
+            })
+          }
+
+          day.setDate(day.getDate() + 1)
+        }
+
+        return missed
+      })
+
+    const historicoComPerdidos = [
+      ...(Array.isArray(historicoCompleto) ? historicoCompleto.filter(Boolean) : []).map((item) => ({
+        ...item,
+        statusVisual: isPendingMissed(item) ? 'PERDIDO' : item.status
+      })),
+      ...missedFromAgenda
+    ].sort((a, b) => {
+      const dateA = getHistoricoDate(a) || new Date(0)
+      const dateB = getHistoricoDate(b) || new Date(0)
+      return dateB - dateA
+    })
+
+    const filteredHistorico = historicoComPerdidos.filter((item) => {
       if (historyFilter === 'all') return true
-      const date = item.dataConfirmacao ? new Date(item.dataConfirmacao) : null
+      const date = getHistoricoDate(item)
       if (!date || Number.isNaN(date.getTime())) return false
       const diffDays = (new Date() - date) / (1000 * 60 * 60 * 24)
       return historyFilter === 'week' ? diffDays <= 7 : diffDays <= 31
-    }) : []
+    })
     return (
       <>
-        <h2 className="section-title">Histórico de Medicamentos</h2>
+        <h2 className="section-title" id="help-target-historico">Histórico de Medicamentos</h2>
         <div className="history-tabs" aria-label="Filtrar histórico por período">
           <button className={historyFilter === 'week' ? 'active' : ''} onClick={() => setHistoryFilter('week')}>Esta semana</button>
           <button className={historyFilter === 'month' ? 'active' : ''} onClick={() => setHistoryFilter('month')}>Este mês</button>
@@ -1684,7 +2534,10 @@ function Home({ onLogout }) {
             </div>
           ) : (
             filteredHistorico.map((item, index) => {
-              const dataConfirmacao = item.dataConfirmacao ? new Date(item.dataConfirmacao) : null
+              const dataConfirmacao = getHistoricoDate(item)
+              const statusVisual = item.statusVisual || item.status
+              const statusLabel = isTakenStatus(statusVisual) ? 'TOMADO' : statusVisual
+              const statusText = statusLabel === 'PERDIDO' ? 'NÃO TOMADO' : statusLabel
               const hoje = new Date()
               const ontem = new Date(hoje); ontem.setDate(hoje.getDate() - 1)
               let dataTexto = dataConfirmacao ? dataConfirmacao.toLocaleDateString('pt-BR') : '—'
@@ -1697,25 +2550,26 @@ function Home({ onLogout }) {
               return (
                 <div key={index} className="card historico-item">
                   <div className="historico-header">
-                    <div className={`historico-icon historico-icon--${(item.status || 'default').toLowerCase()}`}>
-                      {getStatusIcon(item.status)}
+                    <div className={`historico-icon historico-icon--${(statusLabel || 'default').toLowerCase()}`}>
+                      {getStatusIcon(statusLabel)}
                     </div>
                     <div className="historico-info">
                       <h4>{item.nome} {item.dosagem}</h4>
-                      <span className="historico-acao">{item.status}{item.duracao ? ` · ${item.duracao}` : ' · 1 semana'}</span>
+                      <span className="historico-acao">{statusText}{item.duracao ? ` · ${item.duracao}` : ' · 1 semana'}</span>
                     </div>
                     <div className="historico-time">
                       <span>{dataTexto}</span>
                       {dataConfirmacao && <span>{dataConfirmacao.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>}
                     </div>
                   </div>
-                  {item.status === 'PENDENTE' && (
+                  {statusVisual === 'PENDENTE' && !item.virtualMissed && (
                     <div className="pending-actions">
                       <button onClick={() => confirmarHistorico(item.id)} className="btn-status btn-status--confirm"><Widget type="checklist" /> Confirmar</button>
-                      <button onClick={() => ignorarHistorico(item.id)} className="btn-status btn-status--ignore"><Widget type="delete" /> Ignorar</button>
+                      <button onClick={() => abrirModalIgnorar({ historicoId: item.id, med: item })} className="btn-status btn-status--ignore"><Widget type="delete" /> Ignorar</button>
                     </div>
                   )}
                   {item.observacoes && !isDurationOnly && <div className="historico-detalhes"><p>{item.observacoes}</p></div>}
+                  {item.motivoIgnorado && <div className="historico-detalhes"><p>Motivo: {item.motivoIgnorado}</p></div>}
                 </div>
               )
             })
@@ -1741,7 +2595,7 @@ function Home({ onLogout }) {
           nome: perfil.nome,
           ...(perfil.senha !== '******' && perfil.senha ? { senha: perfil.senha } : {}),
           email: perfil.email,
-          idade: parseInt(perfil.idade) || usuarioAtual.idade || null,
+          dataNascimento: perfil.dataNascimento || usuarioAtual.dataNascimento || null,
           comorbidade: perfil.comorbidade
         })
       })
@@ -1754,7 +2608,7 @@ function Home({ onLogout }) {
         localStorage.setItem('perfilUsuario', JSON.stringify({
           nome: perfil.nome,
           email: perfil.email,
-          idade: perfil.idade,
+          dataNascimento: perfil.dataNascimento,
           comorbidade: perfil.comorbidade
         }))
         
@@ -1772,7 +2626,7 @@ function Home({ onLogout }) {
       localStorage.setItem('perfilUsuario', JSON.stringify({
         nome: perfil.nome,
         email: perfil.email,
-        idade: perfil.idade,
+        dataNascimento: perfil.dataNascimento,
         comorbidade: perfil.comorbidade
       }))
       
@@ -1784,7 +2638,7 @@ function Home({ onLogout }) {
           ...usuariosCadastrados[index],
           nome: perfil.nome,
           email: perfil.email,
-          idade: perfil.idade,
+          dataNascimento: perfil.dataNascimento,
           comorbidade: perfil.comorbidade
         }
         localStorage.setItem('usuariosCadastrados', JSON.stringify(usuariosCadastrados))
@@ -1879,7 +2733,6 @@ function Home({ onLogout }) {
     
     try {
       const userId = sessionStorage.getItem('userId')
-      console.log("userId:", userId)
       const response = await fetch(`${API_BASE_URL}/api/usuarios/${userId}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
@@ -1938,19 +2791,44 @@ function Home({ onLogout }) {
 
   const renderConfiguracoes = () => (
     <>
-      <h2 className="section-title">Configurações</h2>
+      <h2 className="section-title" id="help-target-configuracoes">Configurações</h2>
       <div className="configuracoes">
         <div className="card">
 
           <h4>Notificações</h4>
           <label>
             <span>Lembrete de medicamentos</span>
-            <input type="checkbox" defaultChecked />
+            <input type="checkbox" checked readOnly />
           </label>
-          <label>
-            <span>Notificações push</span>
-            <input type="checkbox" defaultChecked />
-          </label>
+          <fieldset className="notification-mode-options">
+            <legend>Tipo de notificacao</legend>
+            <label className={`notification-mode-option ${notificationType === NOTIFICATION_TYPES.SYSTEM ? 'selected' : ''}`}>
+              <input
+                type="radio"
+                name="notificationType"
+                value={NOTIFICATION_TYPES.SYSTEM}
+                checked={notificationType === NOTIFICATION_TYPES.SYSTEM}
+                onChange={() => updateNotificationType(NOTIFICATION_TYPES.SYSTEM)}
+              />
+              <span>
+                <strong>Notificacoes pelo sistema</strong>
+                <small>Usa as notificacoes nativas do computador.</small>
+              </span>
+            </label>
+            <label className={`notification-mode-option ${notificationType === NOTIFICATION_TYPES.BROWSER ? 'selected' : ''}`}>
+              <input
+                type="radio"
+                name="notificationType"
+                value={NOTIFICATION_TYPES.BROWSER}
+                checked={notificationType === NOTIFICATION_TYPES.BROWSER}
+                onChange={() => updateNotificationType(NOTIFICATION_TYPES.BROWSER)}
+              />
+              <span>
+                <strong>Notificacao pelo Browser</strong>
+                <small>Toca som e mostra aviso dentro do site.</small>
+              </span>
+            </label>
+          </fieldset>
           <label>
             <span>Modo escuro</span>
             <input 
@@ -2021,9 +2899,13 @@ function Home({ onLogout }) {
               <span>{perfil.email || 'Não informado'}</span>
             </div>
             <div className="item">
-              <span>Idade:</span>
-              <span>{perfil.idade || 'Não informado'}</span>
-            </div>
+  <span>Data de nascimento:</span>
+  <span>
+    {perfil.dataNascimento
+      ? perfil.dataNascimento.split('-').reverse().join('/')
+      : 'Não informado'}
+  </span>
+</div>
             <div className="item">
               <span>Comorbidade:</span>
               <span>{perfil.comorbidade || 'Nenhuma'}</span>
@@ -2088,12 +2970,20 @@ function Home({ onLogout }) {
                 value={perfil.senha === '******' ? '' : perfil.senha}
                 onChange={(e) => setPerfil({...perfil, senha: e.target.value})}
               />
-              <input
-                type="number"
-                placeholder="Idade"
-                value={perfil.idade}
-                onChange={(e) => setPerfil({...perfil, idade: e.target.value})}
-              />
+              <label htmlFor="dataNascimento">Data de nascimento</label>
+
+<input
+  id="dataNascimento"
+  name="dataNascimento"
+  type="date"
+  value={perfil.dataNascimento}
+  onChange={(e) =>
+    setPerfil({
+      ...perfil,
+      dataNascimento: e.target.value
+    })
+  }
+/>
               <input
                 type="text"
                 placeholder="Comorbidade (opcional)"
@@ -2201,7 +3091,9 @@ function Home({ onLogout }) {
       'dashboard': 'PharmaLife - Home',
       'agenda': 'PharmaLife - Agenda',
       'historico': 'PharmaLife - Histórico',
-
+      'adicionar': 'PharmaLife - Adicionar',
+      'adicionar-medicamento': 'PharmaLife - Adicionar',
+      'adicionar-lembrete': 'PharmaLife - Adicionar',
       'configuracoes': 'PharmaLife - Configurações',
       'ajuda': 'PharmaLife - Ajuda'
     }
@@ -2209,41 +3101,30 @@ function Home({ onLogout }) {
   }, [activeSection])
 
   const [adminData, setAdminData] = useState({ usuarios: [], estatisticas: {} })
+  const [adminUserDetails, setAdminUserDetails] = useState(null)
+  const [adminPage, setAdminPage] = useState(0)
+  const ADMIN_PAGE_SIZE = 10
 
   const carregarDadosAdmin = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/usuarios`)
+      const response = await fetch(`${API_BASE_URL}/api/admin/users`)
       if (response.ok) {
         const usuarios = await response.json()
-        const agora = new Date()
-        const novos = usuarios.filter(u => {
-          const cadastro = new Date(u.dataCadastro || u.createdAt)
-          const diasDiff = (agora - cadastro) / (1000 * 60 * 60 * 24)
-          return diasDiff <= 7
-        }).length
-        
         setAdminData({
           usuarios,
           estatisticas: {
             total: usuarios.length,
-            novos,
-            comSenha: usuarios.filter(u => u.senha && u.senha !== '').length
+            administradores: usuarios.filter(u => u.role === 'ADMIN').length,
+            usuariosComuns: usuarios.filter(u => u.role !== 'ADMIN').length
           }
         })
+        setAdminPage(0)
       } else {
         throw new Error('Backend não disponível')
       }
-    } catch {
-      // Fallback para localStorage
-      const usuariosCadastrados = JSON.parse(localStorage.getItem('usuariosCadastrados') || '[]')
-      setAdminData({
-        usuarios: usuariosCadastrados,
-        estatisticas: {
-          total: usuariosCadastrados.length,
-          novos: 0,
-          comSenha: usuariosCadastrados.filter(u => u.senha).length
-        }
-      })
+    } catch (error) {
+      setAdminData({ usuarios: [], estatisticas: {} })
+      showToastMessage(error.message || 'Acesso administrativo indisponível.')
     }
   }
 
@@ -2253,35 +3134,116 @@ function Home({ onLogout }) {
     }
   }, [activeSection])
 
+  const carregarDetalhesAdmin = async (id) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/admin/users/${id}`)
+      if (response.status === 403) throw new Error('Acesso negado à área administrativa.')
+      if (!response.ok) throw new Error('Não foi possível carregar os dados do usuário.')
+      setAdminUserDetails(await response.json())
+    } catch (error) {
+      showToastMessage(error.message)
+    }
+  }
+
+  const excluirUsuarioAdmin = async (usuario) => {
+    const confirmado = window.confirm(`Excluir permanentemente a conta de ${usuario.nome}? Esta ação não pode ser desfeita.`)
+    if (!confirmado) return
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/admin/users/${usuario.id}`, {
+        method: 'DELETE'
+      })
+      if (response.status === 400) throw new Error('Você não pode excluir a própria conta pela área administrativa.')
+      if (!response.ok) throw new Error('Não foi possível excluir a conta.')
+      setAdminUserDetails(null)
+      await carregarDadosAdmin()
+      showToastMessage('Conta excluída com sucesso.')
+    } catch (error) {
+      showToastMessage(error.message)
+    }
+  }
+
   const renderAdmin = () => (
     <>
       <h2 className="section-title">Painel Administrativo</h2>
         <div className="admin-panel">
           <div className="card">
-            <h3><Widget type="users" className="title-widget" />Usuários Cadastrados ({adminData.usuarios.length})</h3>
-            <div className="usuarios-list">
+            <div className="admin-title-row">
+              <h3><Widget type="users" className="title-widget" />Usuários Cadastrados ({adminData.usuarios.length})</h3>
+              {adminData.usuarios.length > ADMIN_PAGE_SIZE && (
+                <div className="admin-pagination">
+                  <button
+                    type="button"
+                    className="btn-cancel"
+                    onClick={() => setAdminPage((page) => Math.max(0, page - 1))}
+                    disabled={adminPage === 0}
+                  >Anterior</button>
+                  <span>Página {adminPage + 1} de {Math.ceil(adminData.usuarios.length / ADMIN_PAGE_SIZE)}</span>
+                  <button
+                    type="button"
+                    className="btn-save"
+                    onClick={() => setAdminPage((page) => Math.min(Math.ceil(adminData.usuarios.length / ADMIN_PAGE_SIZE) - 1, page + 1))}
+                    disabled={adminPage >= Math.ceil(adminData.usuarios.length / ADMIN_PAGE_SIZE) - 1}
+                  >Próxima</button>
+                </div>
+              )}
+            </div>
+            <div className="admin-users-table">
               <div className="usuario-item header">
                 <span>Nome</span>
                 <span>Email</span>
-                <span>Data Cadastro</span>
-                <span>Senha</span>
+                <span>Comorbidades</span>
+                <span>Medicamentos</span>
+                <span>Ações</span>
               </div>
+              <div className="usuarios-list">
               {adminData.usuarios.length === 0 ? (
                 <div className="usuario-item">
                   <span colSpan="4" style={{textAlign: 'center', color: '#666'}}>Nenhum usuário cadastrado ainda</span>
                 </div>
               ) : (
-                adminData.usuarios.map((usuario, index) => (
-                  <div key={index} className="usuario-item">
+                adminData.usuarios
+                  .slice(adminPage * ADMIN_PAGE_SIZE, (adminPage + 1) * ADMIN_PAGE_SIZE)
+                  .map((usuario) => (
+                  <div key={usuario.id} className="usuario-item">
                     <span>{usuario.nome}</span>
                     <span>{usuario.email}</span>
-                    <span>{new Date(usuario.dataCadastro).toLocaleDateString('pt-BR')}</span>
-                    <span>******</span>
+                    <span>{usuario.comorbidade || 'Não informada'}</span>
+                    <span>{usuario.medicamentos?.length ? usuario.medicamentos.map((medicamento) => medicamento.nome).join(', ') : 'Nenhum'}</span>
+                    <div className="admin-actions">
+                      <button type="button" className="btn-save" onClick={() => carregarDetalhesAdmin(usuario.id)}>Ver detalhes</button>
+                      <button type="button" className="btn-delete" onClick={() => excluirUsuarioAdmin(usuario)}>Excluir</button>
+                    </div>
                   </div>
                 ))
               )}
+              </div>
             </div>
           </div>
+
+          {adminUserDetails && (
+            <div className="card">
+              <h3>{adminUserDetails.nome}</h3>
+              <p><strong>E-mail:</strong> {adminUserDetails.email}</p>
+              <p><strong>Comorbidades:</strong> {adminUserDetails.comorbidade || 'Não informada'}</p>
+              <h4>Medicamentos cadastrados</h4>
+              {adminUserDetails.medicamentos.length === 0 ? (
+                <p>Nenhum medicamento cadastrado.</p>
+              ) : (
+                <ul>{adminUserDetails.medicamentos.map((medicamento) => (
+                  <li key={medicamento.id}>{medicamento.nome} — {medicamento.descricao} ({medicamento.statusMedicamento})</li>
+                ))}</ul>
+              )}
+              <h4>Lembretes cadastrados</h4>
+              {adminUserDetails.lembretes?.length === 0 ? (
+                <p>Nenhum lembrete cadastrado.</p>
+              ) : (
+                <ul>{adminUserDetails.lembretes?.map((lembrete) => (
+                  <li key={lembrete.id}>{lembrete.titulo} — {lembrete.data} às {lembrete.horario}</li>
+                ))}</ul>
+              )}
+            </div>
+          )}
           
           <div className="card">
             <h3><Widget type="chart" className="title-widget" />Estatísticas</h3>
@@ -2290,12 +3252,12 @@ function Home({ onLogout }) {
               <span>{adminData.estatisticas.total || 0}</span>
             </div>
             <div className="item">
-              <span>Novos cadastros (7 dias):</span>
-              <span>{adminData.estatisticas.novos || 0}</span>
+              <span>Usuários comuns:</span>
+              <span>{adminData.estatisticas.usuariosComuns || 0}</span>
             </div>
             <div className="item">
-              <span>Usuários com senha definida:</span>
-              <span>{adminData.estatisticas.comSenha || 0}</span>
+              <span>Administradores:</span>
+              <span>{adminData.estatisticas.administradores || 0}</span>
             </div>
           </div>
         </div>
@@ -2307,9 +3269,10 @@ function Home({ onLogout }) {
       case 'agenda': return renderAgenda()
       case 'historico': return renderHistorico()
       case 'configuracoes': return renderConfiguracoes()
-      case 'adicionar': return renderAdicionar()
+      case 'adicionar': return renderAdicionar('medicamento')
+      case 'adicionar-medicamento': return renderAdicionar('medicamento')
+      case 'adicionar-lembrete': return renderAdicionar('lembrete')
       case 'ajuda': return renderAjuda()
-      case 'sobre': return <Sobre />
       case 'admin': return renderAdmin()
       default: return renderDashboard()
     }
@@ -2343,8 +3306,8 @@ function Home({ onLogout }) {
             <Widget type="list" className="nav-icon" />
             Agenda
           </button>
-          <button 
-            className={activeSection === 'adicionar' ? 'active' : ''} 
+          <button
+            className={['adicionar', 'adicionar-medicamento', 'adicionar-lembrete'].includes(activeSection) ? 'active' : ''}
             onClick={() => setActiveSection('adicionar')}
           >
             <Widget type="add" className="nav-icon" />
@@ -2366,13 +3329,6 @@ function Home({ onLogout }) {
             Configurações
           </button>
           <button 
-            className={activeSection === 'sobre' ? 'active' : ''} 
-            onClick={() => setActiveSection('sobre')}
-          >
-            <Widget type="users" className="nav-icon" />
-            Sobre Nós
-          </button>
-          <button 
             className={activeSection === 'ajuda' ? 'active' : ''} 
             onClick={() => setActiveSection('ajuda')}
           >
@@ -2389,20 +3345,56 @@ function Home({ onLogout }) {
             </button>
           )}
         </nav>
-        <div className="sidebar-user">
-          <div className="user-avatar">{(perfil.nome || sessionStorage.getItem('userName') || 'U').charAt(0).toUpperCase()}</div>
-          <div className="user-summary">
-            <strong>{perfil.nome || sessionStorage.getItem('userName') || 'Usuário'}</strong>
-            <button onClick={onLogout}><Widget type="logout" className="btn-icon" />Sair</button>
-          </div>
-        </div>
-      </aside>
+<div className="sidebar-user">
+  <div className="user-avatar">
+    {(userData?.foto || perfil.foto || sessionStorage.getItem('userPhoto')) ? (
+      <img
+        src={userData?.foto || perfil.foto || sessionStorage.getItem('userPhoto')}
+        alt="Avatar"
+        referrerPolicy="no-referrer"
+      />
+    ) : (
+      (perfil.nome || sessionStorage.getItem('userName') || 'U')
+        .charAt(0)
+        .toUpperCase()
+    )}
+  </div>
+
+  <div className="user-summary">
+    <span>{perfil.nome || sessionStorage.getItem('userName') || 'Usuário'}</span>
+
+    <button onClick={onLogout}>
+      Sair
+    </button>
+  </div>
+</div>
+</aside>
+
+
+      
       
       <main className="main-content">
         {renderContent()}
         {showToast && (
           <div className="toast">
             {toastMessage}
+          </div>
+        )}
+        {browserNotification && (
+          <div className="browser-reminder-alert" role="status" aria-live="assertive">
+            <Widget type="bell" className="browser-reminder-alert__icon" />
+            <div className="browser-reminder-alert__content">
+              <strong>{browserNotification.title}</strong>
+              <span>{browserNotification.body}</span>
+            </div>
+            <button
+              type="button"
+              className="browser-reminder-alert__close"
+              onClick={closeBrowserNotification}
+              title="Fechar notificacao"
+            >
+              Fechar
+            </button>
           </div>
         )}
         
@@ -2487,6 +3479,51 @@ function Home({ onLogout }) {
                   <button type="submit" className="btn-save">Atualizar</button>
                 </div>
               </form>
+            </div>
+          </div>
+        )}
+
+        {showIgnoreModal && (
+          <div className="modal-overlay" onClick={fecharModalIgnorar}>
+            <div className="modal ignore-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="ignore-title">
+              <h3 id="ignore-title"><Widget type="delete" className="title-widget" />Por que você deseja ignorar este medicamento?</h3>
+              <p className="ignore-modal__subtitle">
+                Medicamentos ignorados não contam como esquecidos e não reduzem sua taxa de adesão.
+              </p>
+
+              <div className="ignore-reasons" role="radiogroup" aria-label="Motivo para ignorar medicamento">
+                {ignoreReasonOptions.map((reason) => (
+                  <label key={reason} className={`ignore-reason ${ignoreReason === reason ? 'selected' : ''}`}>
+                    <input
+                      type="radio"
+                      name="ignoreReason"
+                      value={reason}
+                      checked={ignoreReason === reason}
+                      onChange={(e) => setIgnoreReason(e.target.value)}
+                    />
+                    <span>{reason}</span>
+                  </label>
+                ))}
+              </div>
+
+              {ignoreReason === 'Outro motivo' && (
+                <label className="profile-form ignore-other-field">
+                  <span>Descreva o motivo (opcional)</span>
+                  <input
+                    type="text"
+                    placeholder="Ex: tive uma reação ou orientação específica"
+                    value={ignoreOtherReason}
+                    onChange={(e) => setIgnoreOtherReason(e.target.value)}
+                  />
+                </label>
+              )}
+
+              <div className="modal-buttons">
+                <button type="button" className="btn-cancel" onClick={fecharModalIgnorar} disabled={savingIgnore}>Cancelar</button>
+                <button type="button" className="btn-save" onClick={confirmarIgnorarMedicamento} disabled={savingIgnore}>
+                  {savingIgnore ? 'Salvando...' : 'Confirmar'}
+                </button>
+              </div>
             </div>
           </div>
         )}

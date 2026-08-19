@@ -1,9 +1,58 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { getRedirectResult } from 'firebase/auth'
+import { auth } from './firebase'
 import Login from './Login'
+import EsqueciSenha from './EsqueciSenha'
 import Cadastro from './Cadastro'
 import Home from './Home'
+import Onboarding from './Onboarding'
+import Landing from './Landing'
 import './App.css'
 import './Accessibility.css'
+import API_CONFIG from './config'
+import { apiFetch as fetch } from './api'
+import {
+  solicitarPermissaoNotificacao,
+  escutarMensagens,
+  normalizeNotificationType,
+  NOTIFICATION_TYPES
+} from './notificationService'
+
+const API_BASE_URL = API_CONFIG.BASE_URL
+const ONBOARDING_PENDING_DATE = '1900-01-01'
+
+function isProfileComplete(usuario) {
+  return Boolean(
+    usuario?.nome &&
+    usuario?.dataNascimento &&
+    usuario.dataNascimento !== ONBOARDING_PENDING_DATE &&
+    usuario?.comorbidade
+  )
+}
+
+function normalizeUser(data) {
+  return {
+    nome: data?.nome || '',
+    email: data?.email || '',
+    id: data?.id || '',
+    foto: data?.foto || '',
+    dataNascimento: data?.dataNascimento || '',
+    comorbidade: data?.comorbidade || '',
+    role: data?.role === 'ADMIN' ? 'ADMIN' : 'USER',
+    tipoNotificacao: normalizeNotificationType(data?.tipoNotificacao),
+  }
+}
+
+function saveUserSession(usuario) {
+  sessionStorage.setItem('isLoggedIn', 'true')
+  sessionStorage.setItem('usuario', JSON.stringify(usuario))
+  sessionStorage.setItem('userId', String(usuario.id))
+  sessionStorage.setItem('userName', usuario.nome)
+  sessionStorage.setItem('userEmail', usuario.email)
+  sessionStorage.setItem('userPhoto', usuario.foto || '')
+  sessionStorage.setItem('notificationType', normalizeNotificationType(usuario.tipoNotificacao))
+  sessionStorage.setItem('userRole', usuario.role)
+}
 
 function Widget({ className = '' }) {
   return (
@@ -17,26 +66,161 @@ function Widget({ className = '' }) {
 }
 
 function App() {
-  const [currentPage, setCurrentPage] = useState('cadastro')
+  const storedUser = () => {
+    const stored = sessionStorage.getItem('usuario')
+    return stored ? JSON.parse(stored) : null
+  }
+
+  const [currentPage, setCurrentPage] = useState('landing')
   const [isLoggedIn, setIsLoggedIn] = useState(() => {
     return sessionStorage.getItem('isLoggedIn') === 'true'
+      && Boolean(sessionStorage.getItem('authToken'))
   })
   const [accessibilityMode, setAccessibilityMode] = useState(() => {
     return localStorage.getItem('accessibilityMode') === 'true'
   })
+  const [userData, setUserData] = useState(() => storedUser())
+  const [needsOnboarding, setNeedsOnboarding] = useState(() => {
+    const usuario = storedUser()
+    return usuario ? !isProfileComplete(usuario) : false
+  })
 
-  const handleLogin = (userData) => {
-    setIsLoggedIn(true)
-    sessionStorage.setItem('isLoggedIn', 'true')
-    if (userData && userData.nome) {
-      sessionStorage.setItem('userName', userData.nome)
+  useEffect(() => {
+    escutarMensagens()
+  }, [])
+
+  const ativarNotificacoesSistema = async (usuario) => {
+    if (normalizeNotificationType(usuario?.tipoNotificacao) !== NOTIFICATION_TYPES.SYSTEM) {
+      sessionStorage.removeItem('fcmToken')
+      return
     }
+
+    const token = await solicitarPermissaoNotificacao()
+
+    if (token) {
+      sessionStorage.setItem('fcmToken', token)
+
+      const response = await fetch(`${API_BASE_URL}/api/usuarios/${usuario.id}/fcm-token`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          token: token
+        })
+      })
+
+      if (!response.ok) {
+        console.error('O backend nao salvou o token FCM:', response.status)
+        sessionStorage.removeItem('fcmToken')
+      }
+    }
+  }
+
+  useEffect(() => {
+    const checkRedirect = async () => {
+      try {
+        const result = await getRedirectResult(auth)
+        if (!result) return
+
+        const token = await result.user.getIdToken()
+        const response = await fetch(`${API_BASE_URL}/api/usuarios/google-login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token })
+        })
+
+        if (!response.ok) throw new Error('Erro ao autenticar com Google')
+
+        const data = await response.json()
+        data.foto = result.user.photoURL || data.foto || ''
+        handleLogin(data)
+      } catch (error) {
+        console.error(error)
+        alert(error.message || 'Erro no login Google')
+      }
+    }
+
+    checkRedirect()
+  }, [])
+
+  const handleLogin = async (data) => {
+    if (data?.authToken) {
+      sessionStorage.setItem('authToken', data.authToken)
+    }
+    const usuario = normalizeUser(data)
+    const profileComplete = isProfileComplete(usuario)
+
+    saveUserSession(usuario)
+    setIsLoggedIn(true)
+    setUserData(usuario)
+    setNeedsOnboarding(!profileComplete)
+
+    if (profileComplete) {
+      await ativarNotificacoesSistema(usuario)
+    }
+  }
+
+  const handleCadastroSuccess = async (data) => {
+    if (data?.authToken) {
+      sessionStorage.setItem('authToken', data.authToken)
+    }
+    const usuario = normalizeUser(data)
+
+    saveUserSession(usuario)
+    setUserData(usuario)
+    setIsLoggedIn(true)
+    setNeedsOnboarding(true)
+  }
+
+  const handleOnboardingComplete = async (data) => {
+    const usuario = normalizeUser({
+      ...userData,
+      ...data
+    })
+
+    saveUserSession(usuario)
+    setUserData(usuario)
+    setNeedsOnboarding(false)
+
+    await ativarNotificacoesSistema(usuario)
   }
 
   const handleLogout = () => {
     setIsLoggedIn(false)
-    sessionStorage.removeItem('isLoggedIn')
+    setUserData(null)
+    setNeedsOnboarding(false)
+    const sessionKeys = [
+      'isLoggedIn',
+      'usuario',
+      'userId',
+      'userName',
+      'userEmail',
+      'userPhoto',
+      'fcmToken',
+      'notificationType',
+      'agendaId',
+      'userRole',
+      'authToken'
+    ]
+    sessionKeys.forEach((key) => sessionStorage.removeItem(key))
+    localStorage.removeItem('usuario')
+    setCurrentPage('landing')
   }
+
+  useEffect(() => {
+    const handleExpiredSession = () => handleLogout()
+    window.addEventListener('pharmalife:session-expired', handleExpiredSession)
+
+    if (sessionStorage.getItem('isLoggedIn') === 'true'
+        && !sessionStorage.getItem('authToken')) {
+      handleLogout()
+    }
+
+    return () => {
+      window.removeEventListener('pharmalife:session-expired', handleExpiredSession)
+    }
+  }, [])
 
   const toggleAccessibilityMode = () => {
     const newMode = !accessibilityMode
@@ -45,14 +229,18 @@ function App() {
   }
 
   if (isLoggedIn) {
-    return <Home onLogout={handleLogout} />
+    if (needsOnboarding) {
+      return <Onboarding userData={userData} onComplete={handleOnboardingComplete} onLogout={handleLogout} />
+    }
+
+    return <Home onLogout={handleLogout} userData={userData} />
   }
 
   if (currentPage === 'login') {
     return (
       <div className={`auth-shell ${accessibilityMode ? 'accessibility-mode' : ''}`.trim()}>
         <div className="accessibility-header">
-          <button 
+          <button
             className="accessibility-toggle-login"
             onClick={toggleAccessibilityMode}
             title={accessibilityMode ? 'Desativar modo de acessibilidade' : 'Ativar modo de acessibilidade - Letras maiores'}
@@ -61,15 +249,32 @@ function App() {
             {accessibilityMode ? 'Modo Normal' : 'Letras Grandes'}
           </button>
         </div>
-        <Login onGoToCadastro={() => setCurrentPage('cadastro')} onLogin={handleLogin} />
+        <Login onGoToCadastro={() => setCurrentPage('cadastro')} onGoToRecuperarSenha={() => setCurrentPage('recuperar-senha')} onLogin={handleLogin} />
       </div>
     )
+  }
+
+  if (currentPage === 'recuperar-senha') {
+    return (
+      <div className={`auth-shell ${accessibilityMode ? 'accessibility-mode' : ''}`.trim()}>
+        <div className="accessibility-header">
+          <button className="accessibility-toggle-login" onClick={toggleAccessibilityMode}>
+            <Widget className="btn-icon" />
+            {accessibilityMode ? 'Modo Normal' : 'Letras Grandes'}
+          </button>
+        </div>
+        <EsqueciSenha onGoToLogin={() => setCurrentPage('login')} />
+      </div>
+    )
+  }
+  if (currentPage === 'landing') {
+    return <Landing onStart={() => setCurrentPage('cadastro')} />
   }
 
   return (
     <div className={`auth-shell ${accessibilityMode ? 'accessibility-mode' : ''}`.trim()}>
       <div className="accessibility-header">
-        <button 
+        <button
           className="accessibility-toggle-login"
           onClick={toggleAccessibilityMode}
           title={accessibilityMode ? 'Desativar modo de acessibilidade' : 'Ativar modo de acessibilidade - Letras maiores'}
@@ -78,7 +283,7 @@ function App() {
           {accessibilityMode ? 'Modo Normal' : 'Letras Grandes'}
         </button>
       </div>
-      <Cadastro onGoToLogin={() => setCurrentPage('login')} />
+      <Cadastro onGoToLogin={() => setCurrentPage('login')} onCadastroSuccess={handleCadastroSuccess} />
     </div>
   )
 }
