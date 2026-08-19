@@ -1,16 +1,20 @@
 import './Landing.css'
+import './LandingActions.css'
 import medicamentoHero from './assets/medicamento-hero.jpeg'
 import pharmalifeLogo from './assets/pharmalife-logo.png'
 
 const integrantes = [['Maycon', 'Programador'], ['Adriel', 'Programador'], ['Felipe', 'Design'], ['Caio', 'Documentação'], ['Murilo', 'Gerente']]
 
-function Landing({ onStart }) {
+function Landing({ onStart, onLogin }) {
   const goTo = (id) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' })
   return <main className="landing-page"><div className="landing-shell">
     <header className="landing-header">
       <a className="landing-brand" href="#inicio"><img src={pharmalifeLogo} alt="" /><span>PharmaLife</span></a>
       <nav className="landing-nav" aria-label="Navegação principal"><button onClick={() => goTo('sobre')}>Sobre nós</button><button onClick={() => goTo('como-funciona')}>Como funciona</button><button onClick={() => goTo('contato')}>Contato</button></nav>
-      <button className="landing-start landing-header-start" onClick={onStart}>Começar agora</button>
+      <div className="landing-header-actions">
+        <button className="landing-login" onClick={onLogin}>Entrar</button>
+        <button className="landing-start landing-header-start" onClick={onStart}>Começar agora</button>
+      </div>
     </header>
     <section className="landing-hero" id="inicio"><div className="landing-copy"><h1>Sua rotina de medicamentos, <em>organizada.</em></h1><p>PharmaLife te ajuda a lembrar, acompanhar e nunca mais esquecer seus medicamentos e lembretes importantes.</p><div className="landing-actions"><button className="landing-start" onClick={onStart}>Começar agora <b>→</b></button><button className="landing-link" onClick={() => goTo('sobre')}>Saiba mais</button></div></div><div className="landing-visual" aria-hidden="true"><div className="visual-blob" /><div className="visual-note visual-done"><b>✓</b><span>Todos os<br />medicamentos<br />em dia!</span></div><div className="visual-note visual-next"><b>▣</b><span>Próximo lembrete<br /><strong>10:00</strong></span></div><img src={medicamentoHero} alt="" /></div></section>
     <section className="landing-highlights"><article><i>♧</i><div><h2>Lembretes inteligentes</h2><p>Receba alertas na hora certa.</p></div></article><article><i>♢</i><div><h2>Seus dados seguros</h2><p>Privacidade e segurança em primeiro lugar.</p></div></article><article><i>▥</i><div><h2>Acompanhe seu histórico</h2><p>Veja seu progresso e nunca perca o controle.</p></div></article><article><i>◌</i><div><h2>Acessibilidade</h2><p>Recursos pensados para todos.</p></div></article></section>

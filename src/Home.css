@@ -3265,6 +3265,8 @@ button .ui-widget { color: currentColor; }
   display: flex;
   gap: 0.5rem;
   align-items: center;
+  justify-content: flex-end;
+  padding-right: 0.25rem;
 }
 
 .admin-actions button {
@@ -3346,12 +3348,14 @@ button .ui-widget { color: currentColor; }
 .admin-collection-item time { color: #475569; font-size: 0.82rem; text-align: right; }
 .admin-status { padding: 0.35rem 0.55rem; border-radius: 999px; background: #dcfce7; color: #15803d; font-size: 0.72rem; font-weight: 800; white-space: nowrap; }
 .admin-empty { color: #64748b; padding: 1rem 0; }
-.admin-edit-modal { max-width: 520px; }
+.admin-edit-modal { width: min(520px, 90%); max-width: 520px; padding: 2rem; border-radius: 16px; background: #fff; box-shadow: 0 20px 40px rgba(15, 23, 42, 0.25); }
 .admin-edit-modal > p { margin-top: -0.4rem; color: #64748b; }
+.admin-edit-modal .admin-edit-warning { margin: 0 0 0.3rem; padding: 0.75rem 0.9rem; border-left: 4px solid #f59e0b; border-radius: 7px; background: #fffbeb; color: #78350f; line-height: 1.45; }
 .admin-edit-modal form { display: grid; gap: 0.8rem; }
 .admin-edit-modal label { display: grid; gap: 0.35rem; color: #334155; font-weight: 700; }
 .admin-edit-modal label small { color: #64748b; font-weight: 400; }
 .admin-edit-modal input { width: 100%; box-sizing: border-box; border: 1px solid #cbd5e1; border-radius: 9px; padding: 0.75rem; background: #fff; color: #0f172a; }
+.admin-edit-modal input[readonly] { cursor: not-allowed; background: #f1f5f9; color: #64748b; }
 
 .home-container.dark-mode .admin-profile-card,
 .home-container.dark-mode .admin-details-card,
@@ -3368,6 +3372,8 @@ button .ui-widget { color: currentColor; }
 .home-container.dark-mode .admin-collection-item { border-color: #334155; }
 .home-container.dark-mode .admin-edit-modal label { color: #e2e8f0; }
 .home-container.dark-mode .admin-edit-modal input { background: #111827; border-color: #475569; color: #f8fafc; }
+.home-container.dark-mode .admin-edit-modal .admin-edit-warning { background: #422006; color: #fde68a; border-left-color: #fbbf24; }
+.home-container.dark-mode .admin-edit-modal input[readonly] { background: #0f172a; color: #94a3b8; }
 
 @media (max-width: 768px) {
   .admin-profile-card { align-items: stretch; flex-direction: column; }

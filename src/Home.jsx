@@ -3197,7 +3197,6 @@ setPerfil({
           nome: adminEditForm.nome.trim(),
           email: adminEditForm.email.trim(),
           dataNascimento: adminEditForm.dataNascimento || null,
-          comorbidade: adminEditForm.comorbidade.trim(),
           senha: adminEditForm.novaSenha || null
         })
       })
@@ -3258,11 +3257,14 @@ setPerfil({
             <div className="modal-content admin-edit-modal" onClick={(event) => event.stopPropagation()}>
               <h3>Editar usuário</h3>
               <p>Altere somente os dados necessários. Deixe a senha vazia para mantê-la.</p>
+              <p className="admin-edit-warning">
+                Use esta função com responsabilidade. Não é permitido editar os dados do cliente sem a permissão dele.
+              </p>
               <form onSubmit={salvarEdicaoAdmin}>
                 <label>Nome<input value={adminEditForm.nome} onChange={(event) => setAdminEditForm({...adminEditForm, nome: event.target.value})} required /></label>
                 <label>E-mail<input type="email" value={adminEditForm.email} onChange={(event) => setAdminEditForm({...adminEditForm, email: event.target.value})} required /></label>
                 <label>Data de nascimento<input type="date" value={adminEditForm.dataNascimento} onChange={(event) => setAdminEditForm({...adminEditForm, dataNascimento: event.target.value})} /></label>
-                <label>Comorbidades<input value={adminEditForm.comorbidade} onChange={(event) => setAdminEditForm({...adminEditForm, comorbidade: event.target.value})} /></label>
+                <label>Comorbidades <small>(somente leitura)</small><input value={adminEditForm.comorbidade || 'Nenhuma comorbidade informada'} readOnly aria-readonly="true" /></label>
                 <label>Nova senha <small>(opcional)</small><input type="password" minLength="6" value={adminEditForm.novaSenha} onChange={(event) => setAdminEditForm({...adminEditForm, novaSenha: event.target.value})} /></label>
                 <div className="modal-buttons"><button type="button" className="btn-cancel" onClick={() => setShowAdminEditModal(false)}>Cancelar</button><button type="submit" className="btn-save" disabled={adminSaving}>{adminSaving ? 'Salvando...' : 'Salvar alterações'}</button></div>
               </form>

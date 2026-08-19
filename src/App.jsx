@@ -268,7 +268,7 @@ function App() {
     )
   }
   if (currentPage === 'landing') {
-    return <Landing onStart={() => setCurrentPage('cadastro')} />
+    return <Landing onStart={() => setCurrentPage('cadastro')} onLogin={() => setCurrentPage('login')} />
   }
 
   return (
