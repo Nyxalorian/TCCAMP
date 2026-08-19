@@ -5,51 +5,29 @@ import { apiFetch as fetch } from './api'
 import { normalizeNotificationType, NOTIFICATION_TYPES } from './notificationService'
 
 const API_BASE_URL = API_CONFIG.BASE_URL
-const NO_COMORBIDITIES = 'Nao possuo comorbidades'
+const NO_COMORBIDITIES = 'Não possuo comorbidades'
 
 const comorbidityOptions = [
-  'Diabetes',
-  'Hipertensao',
-  'Asma',
-  'Bronquite',
-  'Rinite alergica',
-  'Sinusite cronica',
-  'DPOC',
-  'Hipotireoidismo',
-  'Hipertireoidismo',
-  'Colesterol alto',
-  'Triglicerides altos',
-  'Doenca cardiaca',
-  'Arritmia',
-  'Insuficiencia cardiaca',
-  'Doenca renal cronica',
-  'Gastrite',
-  'Refluxo gastroesofagico',
-  'Doenca hepatica',
-  'Artrite',
-  'Artrose',
-  'Osteoporose',
-  'Fibromialgia',
-  'Enxaqueca',
-  'Epilepsia',
-  'AVC previo',
-  'Ansiedade',
-  'Depressao',
-  'TDAH',
-  'Autismo',
-  'Anemia',
-  'Obesidade',
-  'Apneia do sono',
-  'Glaucoma',
-  'Catarata',
-  'Cancer em tratamento',
-  'Doenca autoimune',
-  'Lupus',
-  'Psoriase',
-  'HIV',
-  'Alergias medicamentosas',
-  'Outra',
-  NO_COMORBIDITIES
+  'Arritmias cardíacas',
+  'Cardiopatia hipertensiva',
+  'Cardiopatias congênitas no adulto',
+  'Cirrose hepática',
+  'Diabetes mellitus',
+  'Doença cerebrovascular',
+  'Doença renal crônica',
+  'Doenças da aorta, dos grandes vasos e fístulas arteriovenosas',
+  'Hemoglobinopatias graves',
+  'Hipertensão arterial',
+  'Hipertensão Arterial Resistente (HAR)',
+  'Hipertensão pulmonar / Cor-pulmonale',
+  'Imunossuprimidos',
+  'Insuficiência cardíaca',
+  'Miocardiopatias e pericardiopatias',
+  'Obesidade mórbida',
+  'Pneumopatias crônicas graves',
+  'Próteses valvares e dispositivos cardíacos implantados',
+  'Reumáticos como portadores de espondilite anquilosante',
+  'Síndrome de Down'
 ]
 
 const parseComorbidities = (value) => {
@@ -127,8 +105,7 @@ function Onboarding({ userData, onComplete, onLogout }) {
   const [profile, setProfile] = useState({
     nome: userData?.nome || '',
     dataNascimento: userData?.dataNascimento === '1900-01-01' ? '' : userData?.dataNascimento || '',
-    comorbidades: initialComorbidities,
-    outraComorbidade: initialComorbidities.find((item) => !comorbidityOptions.includes(item)) || ''
+    comorbidades: initialComorbidities.filter((item) => comorbidityOptions.includes(item) || item === NO_COMORBIDITIES)
   })
   const [notificationType, setNotificationType] = useState(() => {
     return normalizeNotificationType(userData?.tipoNotificacao)
@@ -158,8 +135,7 @@ function Onboarding({ userData, onComplete, onLogout }) {
       if (option === NO_COMORBIDITIES) {
         return {
           ...current,
-          comorbidades: current.comorbidades.includes(NO_COMORBIDITIES) ? [] : [NO_COMORBIDITIES],
-          outraComorbidade: ''
+          comorbidades: current.comorbidades.includes(NO_COMORBIDITIES) ? [] : [NO_COMORBIDITIES]
         }
       }
 
@@ -176,14 +152,11 @@ function Onboarding({ userData, onComplete, onLogout }) {
   }
 
   const getComorbidityValue = () => {
-    const selected = profile.comorbidades.filter((item) => item !== 'Outra')
-    const custom = profile.outraComorbidade.trim()
-
     if (profile.comorbidades.includes(NO_COMORBIDITIES)) {
       return NO_COMORBIDITIES
     }
 
-    return [...selected, custom].filter(Boolean).join(', ') || NO_COMORBIDITIES
+    return profile.comorbidades.filter((item) => comorbidityOptions.includes(item)).join(', ') || NO_COMORBIDITIES
   }
 
   const goNext = () => {
@@ -380,17 +353,14 @@ function Onboarding({ userData, onComplete, onLogout }) {
                     {option}
                   </button>
                 ))}
+                <button
+                  type="button"
+                  className={profile.comorbidades.includes(NO_COMORBIDITIES) ? 'selected' : ''}
+                  onClick={() => toggleComorbidity(NO_COMORBIDITIES)}
+                >
+                  {NO_COMORBIDITIES}
+                </button>
               </div>
-              <label className="onboarding-field onboarding-field--compact">
-                <span>Ou descreva outra opcao</span>
-                <input
-                  type="text"
-                  value={profile.outraComorbidade}
-                  onChange={(e) => handleChange('outraComorbidade', e.target.value)}
-                  disabled={profile.comorbidades.includes(NO_COMORBIDITIES)}
-                  placeholder="Digite aqui, se preferir"
-                />
-              </label>
             </>
           )}
 
